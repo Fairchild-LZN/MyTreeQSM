@@ -1,4 +1,11 @@
 function display_time(T1,T2,string,display)
+% 将仅有秒数 转换为 时分秒输出
+% T1 当前函数所消耗的时间
+% T2 整个程序所消耗的时间
+% string 当前函数的名字
+% display 是否展示出来
+
+
 
 % Display the two times given. "T1" is the time named with the "string" and
 % "T2" is named "Total".
@@ -6,6 +13,7 @@ function display_time(T1,T2,string,display)
 % Changes 12 Mar 2018: moved the if statement with display from the end to 
 %                      the beginning 
 
+% 若展示
 if display
     [tmin,tsec] = sec2min(T1);
     [Tmin,Tsec] = sec2min(T2);

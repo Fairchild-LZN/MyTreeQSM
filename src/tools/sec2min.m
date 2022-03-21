@@ -1,4 +1,5 @@
 function [Tmin,Tsec] = sec2min(T)
+% 将只有秒数，转换为几分几秒
 
 % Transforms the given number of seconds into minutes and residual seconds
 
