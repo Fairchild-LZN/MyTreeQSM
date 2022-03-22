@@ -70,11 +70,17 @@ function [cover,Base,Forb] = tree_sets(P,cover,inputs,segment)
 
 %% Define auxiliar object
 clear aux
+% cover_sets的个数;; max返回最大值,size返回矩阵是x*x维的
 aux.nb = max(size(cover.center));   % number of cover sets
+% aux.nb x 1 全为0的矩阵
 aux.Fal = false(aux.nb,1);
+% Index, 1到nb,间隔为1的序号
 aux.Ind = (1:1:aux.nb)';
+% 取出cover.center的中心点坐标
 aux.Ce = P(cover.center,1:3); % Coordinates of the center points
+% 高度最小值
 aux.Hmin = min(aux.Ce(:,3));
+% 高度最大值
 aux.Height = max(aux.Ce(:,3))-aux.Hmin;
 
 %% Define the base of the trunk and the forbidden sets
@@ -100,17 +106,32 @@ end % End of the main function
 
 function [Base,Forb,cover] = define_base_forb(P,cover,aux,inputs,segment)
 
+% 定义树的底部和不属于树的集合(集合内含有不包括树的点)
+
 % Defines the base of the stem and the forbidden sets (the sets containing
 % points not from the tree, i.e, ground, understory, etc.)
 Ce = aux.Ce;
+
+% inputs.onlytree(传入的点云数据只有树的点云,没有其他不属于树的杂质)
 if inputs.OnlyTree && nargin == 4
     % No ground in the point cloud, the base is the lowest part
+    % 定义树的基部,(1.5 or 0.02倍树高的中心点)
     BaseHeight = min(1.5,0.02*aux.Height);
+
+    % **下面这行,是运行前瞎猜的,属实小丑
+    % 理论上 I 内均为0; 因为所有中心点肯定大于,最小树高+Base底部
+    % **
+
+    % 我不理解为什么会存在中心点,比Hmin还低
     I = Ce(:,3) < aux.Hmin+BaseHeight;
+    % 取出比小于基部所对应的点
     Base = aux.Ind(I);
     Forb = aux.Fal;
-    % Make sure the base, as the bottom of point cloud, is not in multiple parts 
+    % Make sure the base, as the bottom of point cloud, is not in multiple parts
+    % Base即为底部的点坐标
+    % base中分别取xy轴的最大最小值,并相减,然后取出较大值
     Wb = max(max(Ce(Base,1:2))-min(Ce(Base,1:2)));
+    % 中心点中分别取xy轴的最大最小值,并相减,然后取出较大值
     Wt = max(max(Ce(:,1:2))-min(Ce(:,1:2)));
     k = 1;
     while k <= 5 && Wb > 0.3*Wt
@@ -294,6 +315,12 @@ end % End of function
 
 
 function [Trunk,cover] = define_trunk(cover,aux,Base,Forb,inputs)
+
+% cover 聚类集合
+% aux 参数集
+% Base 底部集合
+% Forb 
+% inputs 输入参数
 
 % This function tries to make sure that likely "route" of the trunk from
 % the bottom to the top is connected. However, this does not mean that the
