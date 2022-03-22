@@ -43,6 +43,10 @@ function [Components,CompSize] = connected_components(Nei,Sub,MinSize,Fal)
 % Components    Connected components, (n_comp x 1)-cell
 % CompSize      Number of sets in the components, (n_comp x 1)-vector
 
+
+% Sub内的变量若为0,则代表已连接
+% Sub内的变量若为1,则代表该集合没有连接
+
 if length(Sub) <= 3 && ~islogical(Sub) && Sub(1) > 0
     % Very small subset, i.e. at most 3 cover sets
     n = length(Sub);
@@ -97,6 +101,7 @@ if length(Sub) <= 3 && ~islogical(Sub) && Sub(1) > 0
 elseif any(Sub) || (length(Sub) == 1 && Sub(1) == 0)
     nb = size(Nei,1);
     if nargin == 3
+        % 若输入参数为3个,则设Fal全为0;  实际情况下,输入的Fal参数也全为0
         Fal = false(nb,1);
     end
     if length(Sub) == 1 && Sub == 0
@@ -107,6 +112,8 @@ elseif any(Sub) || (length(Sub) == 1 && Sub(1) == 0)
         else
             Sub = ~Fal;
         end
+    % 判断Sub矩阵,是否是布尔类型;;  islogical判断变量是否为逻辑类型
+    % 如果Sub不是逻辑类型,则进入if,并将其转换为逻辑类型
     elseif ~islogical(Sub)
         % Subset of cover sets
         ns = length(Sub);
@@ -119,6 +126,7 @@ elseif any(Sub) || (length(Sub) == 1 && Sub(1) == 0)
         Sub = sub;
     else
         % Subset of cover sets
+        % 返回Sub中,非零的个数
         ns = nnz(Sub);
     end
     

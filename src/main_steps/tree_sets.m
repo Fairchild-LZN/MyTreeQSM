@@ -319,7 +319,7 @@ function [Trunk,cover] = define_trunk(cover,aux,Base,Forb,inputs)
 % cover 聚类集合
 % aux 参数集
 % Base 底部集合
-% Forb 
+% Forb 全0矩阵
 % inputs 输入参数
 
 % This function tries to make sure that likely "route" of the trunk from
@@ -330,17 +330,25 @@ Nei = cover.neighbor;
 Ce = aux.Ce;
 % Determine the output "Trunk" which indicates which sets are part of
 % likely trunk
+
+% Trunk内初始化全0
 Trunk = aux.Fal;
+% 位于Base的集合定义为1
 Trunk(Base) = true;
 % Expand Trunk from the base above with neighbors as long as possible
 Exp = Base; % the current "top" of Trunk
 % select the unique neighbors of Exp
-Exp = unique_elements([Exp; vertcat(Nei{Exp})],aux.Fal); 
+
+% 删掉Nei(Exp)中重复的集合序号
+Exp = unique_elements([Exp; vertcat(Nei{Exp})],aux.Fal);
+% I 中 取出Trunk中exp的集合
 I = Trunk(Exp);
 J = Forb(Exp);
 Exp = Exp(~I|~J); % Only non forbidden sets that are not already in Trunk
 Trunk(Exp) = true; % Add the expansion Exp to Trunk
+
 L = 0.25; % maximum height difference in Exp from its top to bottom
+% H 是底部这些集合中,最高的高度 - L
 H = max(Ce(Trunk,3))-L; % the minimum bottom heigth for the current Exp
 % true as long as the expansion is possible with original neighbors:
 FirstMod = true; 
@@ -348,9 +356,13 @@ while ~isempty(Exp)
     % Expand Trunk similarly as above as long as possible
     H0 = H;
     Exp0 = Exp;
+    % 将Exp与Exp的邻居找到,并放到同一个矩阵内,删掉重复值
+    % 我不理解为什么Exp定义这么多次, 差距在那儿里呢
     Exp = union(Exp,vertcat(Nei{Exp}));
     I = Trunk(Exp);
+    % 找到Exp中,之前没有选入的,即 新expansion出来的
     Exp = Exp(~I);
+    % 选出大于等于 H 的值
     I = Ce(Exp,3) >= H;
     Exp = Exp(I);
     Trunk(Exp) = true;
@@ -360,6 +372,10 @@ while ~isempty(Exp)
     
     % If the expansion Exp is empty and the top of the tree is still over 5
     % meters higher, then search new neighbors from above
+
+    % "||"和"&&" 是短运算符,
+    % 若(isempty(Exp)为ture,则不计算后续
+    % 若H < H0+inputs.PatchDiam1/2)为false则不计算后续
     if (isempty(Exp) || H < H0+inputs.PatchDiam1/2) && H < aux.Height-5
         
         % Generate rectangular partition of the sets
@@ -675,7 +691,9 @@ Ce = aux.Ce;
 % Expand trunk as much as possible
 Trunk(Forb) = false;
 Exp = Trunk;
+% any函数, Exp全为0时返回0
 while any(Exp)
+    % 寻找当前Exp的
     Exp(vertcat(Nei{Exp})) = true;
     Exp(Trunk) = false;
     Exp(Forb) = false;
@@ -692,6 +710,10 @@ Other(Base) = false;
 % Determine parameters on the extent of the "Nearby Space" and acceptable
 % component size
 % cell size for "Nearby Space" = k0 times PatchDiam:
+
+% ceil函数,向上取整
+% ceil内为3,  PatchDiam1 = 0.08
+
 k0 = min(10,ceil(0.2/inputs.PatchDiam1)); 
 % current cell size, increases by k0 every time when new connections cannot
 % be made:

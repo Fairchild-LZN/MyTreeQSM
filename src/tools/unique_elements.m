@@ -1,4 +1,7 @@
 function Set = unique_elements(Set,False)
+% 独一无二的变量
+% 将set内重复的值删掉
+
 
 n = length(Set);
 if n > 2
