@@ -289,6 +289,8 @@ for h = 1:nd
   %% Generate cover sets
 
   % 生成cover_sets进入第一个函数
+  % P是输入点云
+  % Inputs是输入参数
   cover1 = cover_sets(P,Inputs);
   Time(1) = toc;                      % 保存cover_sets后的时间
   if inputs.disp == 2

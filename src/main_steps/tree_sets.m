@@ -315,6 +315,7 @@ end % End of function
 
 
 function [Trunk,cover] = define_trunk(cover,aux,Base,Forb,inputs)
+% 从Base开始，往上找树干，定义树干为base网上0.25m内的集合均算
 
 % cover 聚类集合
 % aux 参数集
@@ -347,11 +348,14 @@ J = Forb(Exp);
 Exp = Exp(~I|~J); % Only non forbidden sets that are not already in Trunk
 Trunk(Exp) = true; % Add the expansion Exp to Trunk
 
+% 最大高度差 0.25m
 L = 0.25; % maximum height difference in Exp from its top to bottom
 % H 是底部这些集合中,最高的高度 - L
+% 所有属于base底部的最低的高度值;;;(比这个高度还低的可能就是不属于树的点？)
 H = max(Ce(Trunk,3))-L; % the minimum bottom heigth for the current Exp
 % true as long as the expansion is possible with original neighbors:
-FirstMod = true; 
+FirstMod = true;
+% 只要Exp中不为空
 while ~isempty(Exp)
     % Expand Trunk similarly as above as long as possible
     H0 = H;
@@ -359,11 +363,14 @@ while ~isempty(Exp)
     % 将Exp与Exp的邻居找到,并放到同一个矩阵内,删掉重复值
     % 我不理解为什么Exp定义这么多次, 差距在那儿里呢
     Exp = union(Exp,vertcat(Nei{Exp}));
+    % I 中等于0的就是新找到的集合
     I = Trunk(Exp);
     % 找到Exp中,之前没有选入的,即 新expansion出来的
     Exp = Exp(~I);
     % 选出大于等于 H 的值
+    % 如果比 H 小，那么就不属于base内
     I = Ce(Exp,3) >= H;
+    % 将属于Base的集合，放在Exp内
     Exp = Exp(I);
     Trunk(Exp) = true;
     if ~isempty(Exp)
@@ -374,7 +381,7 @@ while ~isempty(Exp)
     % meters higher, then search new neighbors from above
 
     % "||"和"&&" 是短运算符,
-    % 若(isempty(Exp)为ture,则不计算后续
+    % 若(isempty(Exp)为1,则不计算后续, (A中没有元素，结果为1，A中有元素，结果为0)
     % 若H < H0+inputs.PatchDiam1/2)为false则不计算后续
     if (isempty(Exp) || H < H0+inputs.PatchDiam1/2) && H < aux.Height-5
         
@@ -683,25 +690,44 @@ end % End of function
 
 function [cover,Forb] = make_tree_connected(cover,aux,Forb,Base,Trunk,inputs)
 
+% cover是cover_sets内生成的集合信息
+% aux是tree_sets里的初始化的一些变量集合
+% Forb是全为0的矩阵
+% Bass是树的基部集合
+% Trunk是树的主干，其中为0的代表该集合是可以和base连通的，为1的代表还没和base连通
+% inputs是主程序的输入变量集合
+
+% 让整棵树联通起来
+
 % Update neighbor-relation for whole tree such that the whole tree is one
 % connected component
 
+% Nei是每个集合的邻居集合
 Nei = cover.neighbor;
+% Ce是集合的中心点
 Ce = aux.Ce;
 % Expand trunk as much as possible
 Trunk(Forb) = false;
+% 将Trunk赋值给Exp，布尔类型
 Exp = Trunk;
 % any函数, Exp全为0时返回0
+% 根据之前的Trunk内集合，往外延搜索
+% 经过while后，仍然有很多集合没有连接上，因为点云的断层/遮掩等原因
 while any(Exp)
-    % 寻找当前Exp的
+    % 寻找当前Exp的邻居集合，并重新赋值给Exp，赋值为true
     Exp(vertcat(Nei{Exp})) = true;
+    % 排除Exp内属于Trunk的集合
     Exp(Trunk) = false;
+    % 排除Exp内属于Forb的集合（Forb内保存的内容存疑）
     Exp(Forb) = false;
+    % 排除Exp内属于base的集合
     Exp(Base) = false;
+    % 将剩余的集合序号，在Trunk内赋值，属于Trunk
     Trunk(Exp) = true;
 end
 
 % Define "Other", sets not yet connected to trunk or Forb
+% 给other赋值全为1的矩阵，aux.Fal全为0
 Other = ~aux.Fal;
 Other(Forb) = false;
 Other(Trunk) = false;
@@ -713,14 +739,17 @@ Other(Base) = false;
 
 % ceil函数,向上取整
 % ceil内为3,  PatchDiam1 = 0.08
-
 k0 = min(10,ceil(0.2/inputs.PatchDiam1)); 
+% 每当当前集合没有新的邻居时，就扩大搜索范围，每次向外扩半径k0
+
 % current cell size, increases by k0 every time when new connections cannot
 % be made:
 k = k0; 
 if inputs.OnlyTree
     Cmin = 0;
 else
+    % Cmin是向外扩的最小接收半径（若小于Cmin那么就认为这部分是鬼点）
+    % 如果程序属于的点云，含有鬼点，则选择 Cmin = 2（单位不清楚）
     Cmin = ceil(0.1/inputs.PatchDiam1);  % minimum accepted component size, 
     % smaller ones are added to Forb, the size triples every round
 end

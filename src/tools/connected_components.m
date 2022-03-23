@@ -43,9 +43,11 @@ function [Components,CompSize] = connected_components(Nei,Sub,MinSize,Fal)
 % Components    Connected components, (n_comp x 1)-cell
 % CompSize      Number of sets in the components, (n_comp x 1)-vector
 
-
+% Sub是cover_sets生成的集合数
 % Sub内的变量若为0,则代表已连接
 % Sub内的变量若为1,则代表该集合没有连接
+
+% length(Sub)一般一定大于3个，所以不会进入第一个 if
 
 if length(Sub) <= 3 && ~islogical(Sub) && Sub(1) > 0
     % Very small subset, i.e. at most 3 cover sets
@@ -97,13 +99,15 @@ if length(Sub) <= 3 && ~islogical(Sub) && Sub(1) > 0
             CompSize = [1 1 1];
         end
     end
-    
+% 当Sub内全为0时，返回0，有一个不是0，则返回1
+
 elseif any(Sub) || (length(Sub) == 1 && Sub(1) == 0)
     nb = size(Nei,1);
     if nargin == 3
         % 若输入参数为3个,则设Fal全为0;  实际情况下,输入的Fal参数也全为0
         Fal = false(nb,1);
     end
+    % Sub一般大于1，所以不会进入第一个 if
     if length(Sub) == 1 && Sub == 0
         % All the cover sets
         ns = nb;
@@ -114,6 +118,7 @@ elseif any(Sub) || (length(Sub) == 1 && Sub(1) == 0)
         end
     % 判断Sub矩阵,是否是布尔类型;;  islogical判断变量是否为逻辑类型
     % 如果Sub不是逻辑类型,则进入if,并将其转换为逻辑类型
+    % Sub一般一定是布尔类型，则不进入这个 if
     elseif ~islogical(Sub)
         % Subset of cover sets
         ns = length(Sub);
@@ -130,25 +135,31 @@ elseif any(Sub) || (length(Sub) == 1 && Sub(1) == 0)
         ns = nnz(Sub);
     end
     
+    % ns是 集合中未被连接的个数，创立一个元胞数组
     Components = cell(ns,1);
+    % 根据ns数量，生成一个全0矩阵
     CompSize = zeros(ns,1,'uint32');
     nc = 0;      % number of components found
     m = 1;
+    % m 位置的集合 已经被连接的集合
     while ~Sub(m)
         m = m+1;
     end
     i = 0;
     Comp = zeros(ns,1,'uint32');
     while i < ns
+        % Add 是 m 的邻居矩阵
         Add = Nei{m};
         I = Sub(Add);
         Add = Add(I);
+        % a 是找到的新邻居个数
         a = length(Add);
         Comp(1) = m;
         Sub(m) = false;
         t = 1;
         while a > 0
             Comp(t+1:t+a) = Add;
+            % 变为 false 表示已连接
             Sub(Add) = false;
             t = t+a;
             Add = vertcat(Nei{Add});
