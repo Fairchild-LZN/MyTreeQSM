@@ -118,21 +118,30 @@ if inputs.OnlyTree && nargin == 4
     % 定义树的基部,(1.5 or 0.02倍树高的中心点)
     BaseHeight = min(1.5,0.02*aux.Height);
 
+    % 0323
     % **下面这行,是运行前瞎猜的,属实小丑
     % 理论上 I 内均为0; 因为所有中心点肯定大于,最小树高+Base底部
     % **
 
     % 我不理解为什么会存在中心点,比Hmin还低
+
+    % 0327更新，我理解了，我之前不理解属实犯蠢
+
+    % I中是中心点高度坐标，小于最小值+Base高度
     I = Ce(:,3) < aux.Hmin+BaseHeight;
     % 取出比小于基部所对应的点
     Base = aux.Ind(I);
     Forb = aux.Fal;
     % Make sure the base, as the bottom of point cloud, is not in multiple parts
     % Base即为底部的点坐标
+
+    % ******
     % base中分别取xy轴的最大最小值,并相减,然后取出较大值
     Wb = max(max(Ce(Base,1:2))-min(Ce(Base,1:2)));
     % 中心点中分别取xy轴的最大最小值,并相减,然后取出较大值
     Wt = max(max(Ce(:,1:2))-min(Ce(:,1:2)));
+    % ******
+
     k = 1;
     while k <= 5 && Wb > 0.3*Wt
         BaseHeight = BaseHeight-0.05;
@@ -315,7 +324,12 @@ end % End of function
 
 
 function [Trunk,cover] = define_trunk(cover,aux,Base,Forb,inputs)
-% 从Base开始，往上找树干，定义树干为base网上0.25m内的集合均算
+% 0323
+% 从Base开始，往上找树干，定义树干为base往上0.25m内的集合均算
+
+% 0327更新
+% 从Base开始，往上找树干，每次寻找的高度为0.25m
+% 找主干，不在意分支？ 因为有一步要求找到的集合要大于 H 值
 
 % cover 聚类集合
 % aux 参数集
@@ -348,8 +362,11 @@ J = Forb(Exp);
 Exp = Exp(~I|~J); % Only non forbidden sets that are not already in Trunk
 Trunk(Exp) = true; % Add the expansion Exp to Trunk
 
+
 % 最大高度差 0.25m
 L = 0.25; % maximum height difference in Exp from its top to bottom
+
+
 % H 是底部这些集合中,最高的高度 - L
 % 所有属于base底部的最低的高度值;;;(比这个高度还低的可能就是不属于树的点？)
 H = max(Ce(Trunk,3))-L; % the minimum bottom heigth for the current Exp
@@ -368,7 +385,7 @@ while ~isempty(Exp)
     % 找到Exp中,之前没有选入的,即 新expansion出来的
     Exp = Exp(~I);
     % 选出大于等于 H 的值
-    % 如果比 H 小，那么就不属于base内
+    % 如果比 H 小，那么就不属于base内--0327存疑
     I = Ce(Exp,3) >= H;
     % 将属于Base的集合，放在Exp内
     Exp = Exp(I);
@@ -383,6 +400,8 @@ while ~isempty(Exp)
     % "||"和"&&" 是短运算符,
     % 若(isempty(Exp)为1,则不计算后续, (A中没有元素，结果为1，A中有元素，结果为0)
     % 若H < H0+inputs.PatchDiam1/2)为false则不计算后续
+
+    % 0327貌似很难进入下面的if语句--存疑
     if (isempty(Exp) || H < H0+inputs.PatchDiam1/2) && H < aux.Height-5
         
         % Generate rectangular partition of the sets
@@ -514,6 +533,7 @@ while ~isempty(Exp)
         end
     end
 end
+% 下面这步，貌似是针对进入if语句使用的
 cover.neighbor = Nei;
 
 end % End of function
@@ -697,7 +717,7 @@ function [cover,Forb] = make_tree_connected(cover,aux,Forb,Base,Trunk,inputs)
 % Trunk是树的主干，其中为0的代表该集合是可以和base连通的，为1的代表还没和base连通
 % inputs是主程序的输入变量集合
 
-% 让整棵树联通起来
+% 让整棵树连通起来
 
 % Update neighbor-relation for whole tree such that the whole tree is one
 % connected component
@@ -713,6 +733,8 @@ Exp = Trunk;
 % any函数, Exp全为0时返回0
 % 根据之前的Trunk内集合，往外延搜索
 % 经过while后，仍然有很多集合没有连接上，因为点云的断层/遮掩等原因
+
+% 0327下面while，我觉得目的是延申branch
 while any(Exp)
     % 寻找当前Exp的邻居集合，并重新赋值给Exp，赋值为true
     Exp(vertcat(Nei{Exp})) = true;
@@ -738,7 +760,7 @@ Other(Base) = false;
 % cell size for "Nearby Space" = k0 times PatchDiam:
 
 % ceil函数,向上取整
-% ceil内为3,  PatchDiam1 = 0.08
+% ceil内为3（单位不清楚 m ??）,  PatchDiam1 = 0.08
 k0 = min(10,ceil(0.2/inputs.PatchDiam1)); 
 % 每当当前集合没有新的邻居时，就扩大搜索范围，每次向外扩半径k0
 
@@ -757,6 +779,7 @@ end
 % Determine the components of "Other"
 if any(Other)
     Comps = connected_components(Nei,Other,1,aux.Fal);
+    % nc是未连结的集合数
     nc = size(Comps,1);
     NonClassified = true(nc,1);
     %plot_segs(P,Comps,6,1,cover.ball)
@@ -765,26 +788,34 @@ else
     NonClassified = false;
 end
 
+% bottom是 base的最低点
 bottom = min(Ce(Base,3));
 % repeat search and connecting as long as "Other" sets exists
+% 若 NonClassified 中全为0，则返回0
 while any(NonClassified) 
   npre = nnz(NonClassified); % number of "Other" sets before new connections
   again = true; % check connections again with same "distance" if true
   
   % Partition the centers of the cover sets into cubes with size k*dmin
   [Par,CC] = cubical_partition(Ce,k*inputs.PatchDiam1);
+  % 新的元胞数组
   Neighbors = cell(nc,1);
+  % 生成 nc x 2 的全0矩阵  
   Sizes = zeros(nc,2);
+  % 生成 nc x 1 的全1矩阵   
   Pass = true(nc,1);
   first_round = true;
   while again
     % Check each component: part of "Tree" or "Forb"
     for i = 1:nc
+      % 如果NonClassified 和 Pass 中 同时为1
       if NonClassified(i) && Pass(i)
         comp = Comps{i}; % candidate component for joining to the tree
         
         % If the component is neighbor of forbidden sets, remove it
+        % 如果J属于Forb，Forb是不属于树的集合
         J = Forb(vertcat(Nei{comp}));
+        % 一般不会进这里
         if any(J)
           NonClassified(i) = false;
           Forb(comp) = true;
@@ -795,27 +826,38 @@ while any(NonClassified)
           if first_round
               
             % Select the cover sets the nearest to the component
+            % 找到comp内集合 对应的新的分类集合内的位置，“row”的意思不懂
             c = unique(CC(comp,:),'rows');
             m = size(c,1);
             B = cell(m,1);
+            % 针对新的范围找新邻居集合
             for j = 1:m
                 balls = Par(c(j,1)-1:c(j,1)+1,...
                     c(j,2)-1:c(j,2)+1,c(j,3)-1:c(j,3)+1);
                 B{j} = vertcat(balls{:});
             end
+            % 新的邻居集合放在一起
             NearSets = vertcat(B{:});
             % Only the non-component cover sets
+            % 本身所属的小集合为true
             aux.Fal(comp) = true;
+            % I 中为1的是原comp内小集合，其余新的邻居集合为0
             I = aux.Fal(NearSets);
+            % 只保留新的邻居集合
             NearSets = NearSets(~I);
+            % Fal复原
             aux.Fal(comp) = false;
+            % 去掉重复点
             NearSets = unique(NearSets);
+            % 保存
             Neighbors{i} = NearSets;
             if isempty(NearSets)
                 Pass(i) = false;
             end
             % No "Other" sets
+            % 观察新的邻居集合，是否已经确认连结树干
             I = Other(NearSets);
+            % 保留，已经连结的集合
             NearSets = NearSets(~I);
           else
             NearSets = Neighbors{i};
@@ -825,15 +867,21 @@ while any(NonClassified)
           end
           
           % Select different class from NearSets
+          % I 中表示 是否属于Trunk  
           I = Trunk(NearSets);
+          % J 中表示 是否不属于树
           J = Forb(NearSets);
+          % 将属于树干的部分放入trunk中
           trunk = NearSets(I); % "Trunk" sets
           forb = NearSets(J); % "Forb" sets
+          % 这里的sizes是，未连接的集合数
           if length(trunk) ~= Sizes(i,1) || length(forb) ~= Sizes(i,2)
+            % 将当前trunk和forb的个数保存进去
             Sizes(i,:) = [length(trunk) length(forb)];
             
             % If large component is tall and close to ground, then
             % search the connection near the component's bottom
+            % NC是之前未连结的集合中，延申找出来的集合合集个数
             if NC > 100
               hmin = min(Ce(comp,3));
               H = max(Ce(comp,3))-hmin;
@@ -849,6 +897,8 @@ while any(NonClassified)
             
             % Determine the closest sets for "trunk"
             if ~isempty(trunk)
+                % 计算comp和trunk 在ce中所指代的坐标的两点之间距离
+                % d 是 comp x trunk 的二维矩阵，保存的是欧式距离
                 d = pdist2(Ce(comp,:),Ce(trunk,:));
                 if NC == 1 && length(trunk) == 1
                   dt = d; % the minimum distance
@@ -861,6 +911,8 @@ while any(NonClassified)
                   [dt,IC] = min(d);
                   IT = 1;
                 else
+                  % d 保存之前d中每列的最小值， IC 保存之前d中每列最小值的行号
+                  % 找到最小值的行列位置
                   [d,IC] = min(d);
                   [dt,IT] = min(d);
                   IC = IC(IT);
@@ -882,25 +934,32 @@ while any(NonClassified)
             
             % Determine what to do with the component
             if (dt > 12 && dt < 100) || (NC < Cmin && dt > 0.5 && dt < 10)
+              % 移走很小的component
               % Remove small isolated component
               Forb(comp) = true;
               Other(comp) = false;
               NonClassified(i) = false;
             elseif 3*df < dt || (df < dt && df > 0.25)
+              % 将这部分加入到 不属于树的集合内
               % Join the component to "Forb"
               Forb(comp) = true;
               Other(comp) = false;
                 NonClassified(i) = false;
+            % 如果trunk和forb内均为空
             elseif (df == 1000 && dt == 700) || dt > k*inputs.PatchDiam1
               % Isolated component, do nothing
             else
               % Join to "Trunk"
+              % 找到最近点在comp的位置
               I = comp(IC);
+              % 找到最近点在trunk的位置 
               J = trunk(IT);
               Other(comp) = false;
+              % 属于trunk内
               Trunk(comp) = true;
               NonClassified(i) = false;
               % make the connection
+              % 添加彼此，互相定义为邻居
               Nei{I} = [Nei{I}; J];
               Nei{J} = [Nei{J}; I];
             end
@@ -908,19 +967,25 @@ while any(NonClassified)
         end
       end
     end
+    % 若NonClassified内仍有集合时，开始下一圈循环
     first_round = false;
     % If "Other" has decreased, do another check with same "distance"
+    % npre是未连结的点个数
     if nnz(NonClassified) < npre
         again = true;
+        % 更新 新的未连结的点个数
         npre = nnz(NonClassified);
     else
         again = false;
     end
   end
+  % k 是额外向外扩展的搜索半径
   k = k+k0; % increase the cell size of the nearby search space
+  % Cmin是若点云内不全是树的点时的内圈半径
   Cmin = 3*Cmin; % increase the acceptable component size
 end
 Forb(Base) = false;
+% 更新 邻居关系
 cover.neighbor = Nei;
 
 end % End of function

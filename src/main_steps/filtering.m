@@ -14,6 +14,13 @@
 % along with TREEQSM.  If not, see <http://www.gnu.org/licenses/>.
 
 function Pass = filtering(P,r1,n1,d2,r2,n2,Scaling,AllPoints)
+% P是输入的点云数组
+% r1是用于第一次滤波的半径
+% n1是第一次滤波球内包括的最少点数
+% r2是用于第二次滤波的半径
+% n2是第二次滤波球内包括的最少聚合类别数
+% scaling如果=1，那么n1沿着树木高度，按平均点密度缩放
+% allpoints如果=1，对每个点都进行第一次滤波筛选
 
 % ---------------------------------------------------------------------
 % FILTERING.M       Filters noise from point clouds.
@@ -56,6 +63,7 @@ function Pass = filtering(P,r1,n1,d2,r2,n2,Scaling,AllPoints)
 
 
 % Default firts filtering is not comprehensive and with scaling
+% 如果只有六个输入变量
 if nargin == 6
     Scaling = false;
     AllPoints = false; 
@@ -64,17 +72,23 @@ elseif nargin == 7
 end
 
 % Only double precision data
+% 如果P不是double类型，则转换为double类型
 if ~isa(P,'double')
     P = double(P);
 end
 % Only x,y,z-data
+% P中只保留点的xyz坐标
 if size(P,2) > 3
     P = P(:,1:3);
 end
+% np是点云中点的数量
 np = size(P,1);
 np0 = np;
 
 % Remove possible NaNs
+
+% isnan确定P中哪儿些是nan值，如果是nan则相应位置返回1，否则返回0
+% any(P, 2)表示检测，P的每一行
 I = any(isnan(P),2);
 if any(I)
     P = P(~I,:);

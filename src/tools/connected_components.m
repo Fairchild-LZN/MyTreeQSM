@@ -99,8 +99,8 @@ if length(Sub) <= 3 && ~islogical(Sub) && Sub(1) > 0
             CompSize = [1 1 1];
         end
     end
-% 当Sub内全为0时，返回0，有一个不是0，则返回1
 
+% 当Sub内全为0时，返回0，有一个不是0，则返回1
 elseif any(Sub) || (length(Sub) == 1 && Sub(1) == 0)
     nb = size(Nei,1);
     if nargin == 3
@@ -142,53 +142,73 @@ elseif any(Sub) || (length(Sub) == 1 && Sub(1) == 0)
     nc = 0;      % number of components found
     m = 1;
     % m 位置的集合 已经被连接的集合
+    % 若 ~sub(m)==1, 表示该处集合已连结，若 ~sub(m)==0, 表示该处集合未连结
     while ~Sub(m)
         m = m+1;
     end
     i = 0;
     Comp = zeros(ns,1,'uint32');
+    % ns是非零总数
     while i < ns
-        % Add 是 m 的邻居矩阵
+        % Add 是 m处 的邻居矩阵
         Add = Nei{m};
+        % I 是Add在Sub中是什么状态，是否被连结
         I = Sub(Add);
+        % Add 保留下 m的邻居矩阵
         Add = Add(I);
         % a 是找到的新邻居个数
         a = length(Add);
+        % 在comp第一个位置，保存 m
         Comp(1) = m;
+        % 设为0 证明已经被连结
         Sub(m) = false;
         t = 1;
         while a > 0
+            % 将Add的内容，添加到m的后面
             Comp(t+1:t+a) = Add;
             % 变为 false 表示已连接
             Sub(Add) = false;
+            % 确认当前索引值 comp内的
             t = t+a;
+            % 找到Add的所有邻居矩阵（存在重复）
             Add = vertcat(Nei{Add});
             I = Sub(Add);
             Add = Add(I);
             % select the unique elements of Add:
+            % n是Add 筛选后的长度
             n = length(Add);
             if n > 2
+                % 长度为n全为1的向量
                 I = true(n,1);
                 for j = 1:n
+                    % Fal内的元素理论上均为0，所以第一次一定进入第一个if内
+                    % 若Add内有重复的元素，那么I内就会变为false
                     if ~Fal(Add(j))
                         Fal(Add(j)) = true;
                     else
                         I(j) = false;
                     end
                 end
+                % 将Fal内重置为均为0
                 Fal(Add) = false;
+                % Add内为 无重复值（所以为什么不使用unique函数）
                 Add = Add(I);
             elseif n == 2
                 if Add(1) == Add(2)
                     Add = Add(1);
                 end
             end
+            % a是筛选后Add的长度
             a = length(Add);
         end
         i = i+t;
+        % MinSize = 1, 所以一定进入第一个if
         if t >= MinSize
+            % nc是新找到的集合数
             nc = nc+1;
+            % 将新找到的这些邻居,保存在Components内
             Components{nc} = uint32(Comp(1:t));
+            % 保存新邻居的个数
             CompSize(nc) = t;
         end
         if i < ns
@@ -196,6 +216,8 @@ elseif any(Sub) || (length(Sub) == 1 && Sub(1) == 0)
                 m = m+1;
             end
         end
+        % 既然每次Comp, Components, ComSize都会重新赋值,那为什么还要初始化设为一个特别大的向量呢
+        % 我猜是为了防止,剩下的所有集合,被一次性全部找到
     end
     Components = Components(1:nc);
     CompSize = CompSize(1:nc);
