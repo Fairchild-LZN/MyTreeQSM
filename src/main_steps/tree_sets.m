@@ -80,7 +80,7 @@ aux.Ind = (1:1:aux.nb)';
 aux.Ce = P(cover.center,1:3); % Coordinates of the center points
 % 高度最小值
 aux.Hmin = min(aux.Ce(:,3));
-% 高度最大值
+% 高度最大值-最小值
 aux.Height = max(aux.Ce(:,3))-aux.Hmin;
 
 %% Define the base of the trunk and the forbidden sets
@@ -533,7 +533,7 @@ while ~isempty(Exp)
         end
     end
 end
-% 下面这步，貌似是针对进入if语句使用的
+% 下面这步，貌似是针对进入上面的小if语句使用的
 cover.neighbor = Nei;
 
 end % End of function
