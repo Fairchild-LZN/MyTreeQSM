@@ -70,6 +70,7 @@ NChi = zeros(a,1);      % Number of child segments found for each segment
 Fal = false(nb,1);      % Logical false-vector for cover sets
 s = 1;                  % The index of the segment under expansion
 % b中保存最后一次开始寻找时的 根的 索引值
+% 0329更新，每发现一个新的分支b+1
 b = s;                  % The index of the latest found base
 
 SBas{s} = Base;
@@ -117,6 +118,7 @@ while Continue && (b < nb)
         CutComps = cut_components(Nei,Cut,CutSize,Fal,Fal);
         nc = size(CutComps,1);
         if nc > 1
+            % study_components研究哪儿个是主干，哪儿个是分支
             [StudyComps,Bases,CompSize,Cont,BaseSize] = ...
                 study_components(Nei,ns,Cut,CutComps,Forb,Fal,Fal);
             nc = length(Cont);
@@ -143,26 +145,38 @@ while Continue && (b < nb)
         Class = component_classification(CompSize,Cont,BaseSize,CutSize);
         
         for i = 1:nc
-            % 如果是分支
+            % 如果是分支class==1，class==0是主干
             if Class(i) == 1
+                % 取出新的分支的Base底部
                 Base = Bases{i};
                 % ForbAll为true代表，已被记录
                 ForbAll(Base) = true;
                 Forb(StudyComps{i}) = true;
+                % 将cut内属于分支的部分去除掉
                 J = Forb(Cut);
                 Cut = Cut(~J);
+                % 发现新的分支
+                % 记录新的base
                 b = b+1;
                 SBas{b} = Base;
                 % 0328 s的意思还不懂
-                % nl代表它的父节点是第三层
+                % 0329 盲猜这个s不会指的是第几个分支？？
+                % 0331 s=1代表主干（第一个分支），s=2代表第二个base开始的树枝
+                % nl代表它的父节点是在当前分支的第几层
                 SPar(b,:) = [s nl];
+                % 发现的子分支个数
                 NChi(s) = NChi(s)+1;
+                % 0331 这步可能是为了后面找下一个base用的
+                % s分支（主干也是一种分支），的第Nchi(s)个分支，的b位置的base（上面将base保存在sBas(b)中的）
                 SChi{s}(NChi(s)) = b;
             end
         end
         
         % Define the new cut.
         % If the cut is empty, determine the new base
+        % 0331 下面是瞎猜的，调试没成功（有问题！）
+        % 因为上面的for循环，将cut内属于分支的部分都去除掉
+        % 如果（到头了？），这样cut内的所有元素都没了，就有可能进入下面这个if中
         if isempty(Cut)
             Segs{s} = Seg(1:nl);
             S = vertcat(Seg{1:nl});
@@ -185,16 +199,26 @@ while Continue && (b < nb)
             Seg{nl} = Cut;
         end
     
+    % 当define_cut返回空，即cutsize==0时，会进入这个分支
     else
         % If the study region has zero size, then the current segment is
         % complete and determine the base of the next segment
+        % 如果当前的分支没有新的邻居，
+        % 那么找到Base开始另一个分支
+
+        % 将这个分支，每一个layer(每层)的集合索引，都保存在segs元胞数组中的一个元素内
         Segs{s} = Seg(1:nl);
+        % 取出Segs中的每个元素
         S = vertcat(Seg{1:nl});
+        % 标记为true，表示已被标记
         ForbAll(S) = true;
         
+        % s是当前正在进行的分支索引，b是现在一共发现了多少个分支个数
         if s < b
             s = s+1;
+            % 将新的Base赋值给Seg的底部
             Seg{1} = SBas{s};
+            % Forb中为1则表示已被标记
             Forb = ForbAll;
             NewSeg = true;
             nl = 1;
@@ -203,19 +227,24 @@ while Continue && (b < nb)
         end
     end
 end
+% 取出每个分支的Segs
 Segs = Segs(1:b);
+% 取出每个分支的父节点，第一列代表是第几个分支，第二列代表在这个分支的第几层
 SPar = SPar(1:b,:);
+% schi是元胞数组，里面第n个数组（第n个分支）内保存的是在SPar内的索引
 schi = SChi(1:b);
 
 % Define output
 SChi = cell(b,1);
 for i = 1:b
     if NChi(i) > 0
+        % 转换成int类型
         SChi{i} = uint32(schi{i}(1:NChi(i)));
     else
         SChi{i} = zeros(0,1,'uint32');
     end
     S = Segs{i};
+    % 将Segs中保存的转换为int类型
     for j = 1:size(S,1)
         S{j} = uint32(S{j});
     end

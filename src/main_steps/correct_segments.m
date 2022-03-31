@@ -15,6 +15,15 @@
 
 function segment = correct_segments(P,cover,segment,inputs,RemSmall,ModBases,AddChild)
 
+% P是原始输入点云
+% cover是分类后的集合索引
+% segment是上一个函数分分支后的结果
+% inputs是最初的总函数输入变量
+% RemSmall==0
+% ModBases==1
+% Addchild==1
+
+
 % ---------------------------------------------------------------------
 % CORRECT_SEGMENTS.M        Corrects the given segmentation.
 %
@@ -62,10 +71,15 @@ elseif nargin == 6
     AddChild = false;
 end
 
+% 每个集合包括的点的索引
 Bal = cover.ball;
+% 每个分支内的集合索引
 Segs = segment.segments;
+% 每个分支的父分支和父分支所在的层数
 SPar = segment.ParentSegment;
+% 每个分支的子节点
 SChi = segment.ChildSegment;
+% 集合中心点的xyz三维坐标
 Ce = P(cover.center,:);
 
 %% Make stem and branches as long as possible
@@ -173,31 +187,53 @@ end % End of main function
 
 
 function StemTop = search_stem_top(P,Ce,Bal,Segs,SPar,dmin)
+% 从最中间的点(集合)开始找？
+
+% P是原始xyz点
+% Ce是集合中心点坐标
+% Bal是每个集合包括的点的索引
+% Segs是每层包括的集合索引
+% Spar是每个分支的父节点
 
 % Search the stem's top segment such that the resulting stem
 % 1) is one the highest segments (goes to the top of the tree)
 % 2) is horizontally close to the bottom of the stem (goes straigth up)
 % 3) has length close to the distance between its bottom and top (is not too curved)
+
+% 层数的个数
 nseg = size(Segs,1);
+% 全0的矩阵
 SegHeight = zeros(nseg,1); % heights of the tips of the segments
 HorDist = zeros(nseg,1); % horizontal distances of the tips from stem's center
+% 当前分支的base集合索引
 s = Segs{1}{1};
+% s中集合中心点所对应的平均值
 StemCen = average(Ce(s,:)); % center (x,y) of stem base
 for i = 1:nseg
+    % S是当前分支中，最后一层的第一个集合
     S = Segs{i}{end}(1);
+    % 当前分支的“最高”高度，保存在segheight中
     SegHeight(i) = Ce(S,3);
+    % 返回欧几里得范数,即每个分支,距离最底部Base的向量模
+    % xoy面的
     HorDist(i) = norm(Ce(S,1:2)-StemCen(1:2));
 end
+% 找到距离Base最远(高)的分支
 Top = max(SegHeight); % the height of the highest tip
+% 计算每个分支,距离最高的分支的距离
 HeiDist = Top-SegHeight; % the height difference to "Top"
+% xoy面+z轴
+% Dist距离中心点的距离
 Dist = sqrt((HorDist.^2+HeiDist.^2)); % Distance to the top
 LenDisRatio = 2;
 SearchDist = 0.5;
 MaxLenDisRatio = 1.05; % the maximum acceptable length/distance ratio of segments
 SubSegs = zeros(100,1); % Segments to be combined to form the stem
 while LenDisRatio > MaxLenDisRatio
+    % 长度为nseg个的列向量
     StemTops = (1:1:nseg)';
     I = Dist < SearchDist; % only segments with distance to the top < 0.5m
+    % 若I中都为0,则进入循环,扩大搜索半径
     while ~any(I)
         SearchDist = SearchDist+0.5;
         I = Dist < SearchDist;
@@ -205,38 +241,53 @@ while LenDisRatio > MaxLenDisRatio
     StemTops = StemTops(I);
     
     % Define i-1 alternative stems from StemTops
+    % n为符合目前搜索半径条件的有多少个layer
     n = length(StemTops);
     Stems = cell(n,1);
     Segment = cell(3000,1);
+    % 下面这个for循环
     for j = 1:n
         Seg = Segs{1};
+        % 备份一份SPar
         spar = SPar;
+        % 如果当前layer不等于1
         if StemTops(j) ~= 1
             % Tip point was not in the current segment, modify segments
+            % 将当前的对应的层数索引,赋值给Subsegs
             SubSegs(1) = StemTops(j);
             nsegs = 1;
             segment = StemTops(j);
             while segment ~= 1
+                % segment对应的是父节点
                 segment = SPar(segment,1);
+                % nsegs对应的应该是找了多少个分支？
                 nsegs = nsegs+1;
+                % 保存分支的走势关系
                 SubSegs(nsegs) = segment;
             end
             % Modify stem
             a = size(Seg,1);
+            % Segment变量是一个备份，用来重新调整的中间量
             Segment(1:a) = Seg;
             a = a+1;
             for i = 1:nsegs-2
+                % 每次循环,IJ,都是挨着相连的，I比J多一层，I是J的父节点
                 I = SubSegs(nsegs-i); % segment to be combined to the first segment
                 J = SubSegs(nsegs-i-1); % above segment's child to be combined next
+                % 大SP保存，在I分支的第SP位置layer开始下一个分支，即J
                 SP = spar(I,2);  % layer index of the child in the parent
+                % 取出I处片段的集合索引
                 SegC = Segs{I};
+                % 小sp保存，在J分支的第sp位置layer开始下一个分支，即下一个I
                 sp = spar(J,2);  % layer index of the child's child in the child
+                % 
                 if SP >= a-2 % Use the whole parent
                     Segment(a:a+sp-1) = SegC(1:sp);
                     spar(J,2) = a+sp-1;
                     a = a+sp;
                 else % Use only bottom part of the parent
                     Segment(SP+1:SP+sp) = SegC(1:sp);
+                    % 底下这个+1不太懂
                     a = SP+sp+1;
                     spar(J,2) = SP+sp;
                 end
@@ -244,6 +295,7 @@ while LenDisRatio > MaxLenDisRatio
             end
             
             % Combine the last segment to the branch
+            % 将最后一个分支，与主干连结
             I = SubSegs(1);
             SP = spar(I,2);
             SegC = Segs{I};
@@ -263,12 +315,14 @@ while LenDisRatio > MaxLenDisRatio
     end
     
     % Calculate the lengths of the candidate stems
+    % 每个竖起来的长度为1.4？
     N = ceil(0.5/dmin/1.4); % number of layers used for linear length approximation
     Lengths = zeros(n,1);
     Heights = zeros(n,1);
     for i = 1:n
         Seg = Stems{i,1};
         ns = size(Seg,1);
+        % ceil向上取整，floor向下取整
         if ceil(ns/N) > floor(ns/N)
             m = ceil(ns/N);
         else
@@ -282,12 +336,14 @@ while LenDisRatio > MaxLenDisRatio
             end
             S = Seg{I};
             if length(S) > 1
+                % 当前这层包括的集合的中心点的中心点，保存到Nodes内
                 Nodes(j,:) = average(Ce(S,:));
             else
                 S = Bal{S};
                 Nodes(j,:) = average(P(S,:));
             end
         end
+        % 计算从第二层一直到最顶部，和第一层xyz之间的差值
         V = Nodes(2:end,:)-Nodes(1:end-1,:);
         Lengths(i) = sum(sqrt(sum(V.*V,2)));
         V = Nodes(end,:)-Nodes(1,:);
@@ -479,9 +535,12 @@ end % End subfunction
 
 function [Segs,SPar,SChi] = modify_topology(P,Ce,Bal,Segs,SPar,SChi,dmin)
 
+% 第一次进入 dmin = 0.08
+
 % Make stem and branches as long as possible
 ns = size(Segs,1);
 Fal = false(2*ns,1);
+% 向上取整
 nc = ceil(ns/5);
 SubSegments = zeros(nc,1); % for searching sub-segments 
 SegInd = 1; % the segment under modification
@@ -490,7 +549,9 @@ UnMod(SegInd) = false;
 BranchOrder = 0;
 ChildSegInd = 1; % index of the child segments under modification
 while any(UnMod)
+    % 当前被调整的分支的子节点
     ChildSegs = SChi{SegInd}; % child segments of the segment under modification
+    % 如果保存的是行向量，转成列向量
     if size(ChildSegs,1) < size(ChildSegs,2)
         ChildSegs = ChildSegs';
         SChi{SegInd} = ChildSegs;
@@ -498,6 +559,7 @@ while any(UnMod)
     
     if ~isempty(Segs(SegInd)) && ~isempty(ChildSegs)
         
+        % 如果是二阶分支+高位置的分支？
         if SegInd > 1 && BranchOrder > 1 % 2nd-order and higher branches
             % Search the tip of the sub-branches with biggest linear
             % distance from the current branch's base 
@@ -530,10 +592,12 @@ while any(UnMod)
             [~,I] = max(d);
             TipSeg = SubSegments(I(1));
             
+        % 如果是第一分支
         elseif SegInd > 1 && BranchOrder <= 1 % first order branches
             
             TipSeg = search_branch_top(P,Ce,Bal,Segs,SPar,SChi,dmin,SegInd);
             
+        % 主干
         else % Stem
             
             TipSeg = search_stem_top(P,Ce,Bal,Segs,SPar,dmin);
