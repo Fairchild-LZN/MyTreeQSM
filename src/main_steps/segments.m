@@ -73,6 +73,7 @@ s = 1;                  % The index of the segment under expansion
 % 0329更新，每发现一个新的分支b+1
 b = s;                  % The index of the latest found base
 
+% SBas中保存每一个分支的底部集合索引
 SBas{s} = Base;
 Seg = cell(1000,1);    % The cover set layers in the current segment
 Seg{1} = Base;
@@ -333,7 +334,7 @@ else
     i = 0;
     while i < CutSize
         % 找到当前集合m的所有邻居集合
-        % 找到的邻居集合，一定也在Cut内，但会多出已经被seg的集合
+        % 找到的邻居集合，一定也在Cut内，但会多出已经被seg分类的集合
         Added = Nei{m};
         % 只保留cut内的集合
         I = Fal(Added);
@@ -341,18 +342,20 @@ else
         % 计算去除后的集合个数
         a = length(Added);
         Comp(1) = m;
-        % 在Fal内标记该集合以被Seg
+        % 在Fal内标记该集合（m是一个集合）以被Seg
         Fal(m) = false;
         t = 1;
         % 下面这个while有点类似，沿着圆柱xoy平面横着找邻居集合
         while a > 0
             % 将邻居集合保存在Comp内
             Comp(t+1:t+a) = Added;
-            % 在Fal内标记m的邻居集合被seg
+            % 在Fal内标记m的邻居集合（added是多个集合）被seg
             Fal(Added) = false;
             t = t+a;
             Ext = vertcat(Nei{Added});
             Ext = unique_elements(Ext,False);
+            % Fal内本来都是0，但是进入这个函数后，把cut内包含的点都设为true
+            % 因此，下面这步，在Fal内寻找ture，即把域控制在cut内
             I = Fal(Ext);
             Added = Ext(I);
             a = length(Added);
@@ -435,6 +438,7 @@ study = vertcat(Study{:});
 nc = size(CutComps,1);
 i = 1; % index of cut component
 % j表示有多少个集合被统计记录
+% J是总数
 j = 0; % number of elements attributed to components
 % k表示需要分辨的树干的个数
 k = 0; % number of study components
@@ -587,7 +591,7 @@ for i = 1:nc
     if BaseSize(i) == CompSize(i) && ~Cont(i)
         % component has no expansion, not a branch
         Class(i) = 0;
-    % 如果基部有1个集合，总体有2个集合
+    % 如果基部只有1个集合，总体有2个集合
     % 那么是个很小的外扩，不算一个分支
     elseif BaseSize(i) == 1 && CompSize(i) <= 2 && ~Cont(i)
         % component has very small expansion, not a branch

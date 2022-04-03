@@ -98,6 +98,7 @@ end
 ns = size(Segs,1);
 for i = 1:ns
     if isempty(SChi{i})
+        % 将没有子节点的，更改为uint32类型
         SChi{i} = zeros(0,1,'uint32');
     end
 end
@@ -208,6 +209,7 @@ HorDist = zeros(nseg,1); % horizontal distances of the tips from stem's center
 % 当前分支的base集合索引
 s = Segs{1}{1};
 % s中集合中心点所对应的平均值
+% 最底下Base所对应的平均值
 StemCen = average(Ce(s,:)); % center (x,y) of stem base
 for i = 1:nseg
     % S是当前分支中，最后一层的第一个集合
@@ -254,33 +256,40 @@ while LenDisRatio > MaxLenDisRatio
         if StemTops(j) ~= 1
             % Tip point was not in the current segment, modify segments
             % 将当前的对应的层数索引,赋值给Subsegs
+            % 初次备份
             SubSegs(1) = StemTops(j);
             nsegs = 1;
+            % 初次定义segment，再次备份
             segment = StemTops(j);
+            % segment==1，代表是找到与主干的关系了
+            % 0403每个Segs对应一个SPar
             while segment ~= 1
                 % segment对应的是父节点
                 segment = SPar(segment,1);
-                % nsegs对应的应该是找了多少个分支？
+                % nsegs对应的应该是找了多少个父分支？
                 nsegs = nsegs+1;
                 % 保存分支的走势关系
                 SubSegs(nsegs) = segment;
             end
-            % Modify stem
+            % Modify stem、
+            % 当前分支的layer数
             a = size(Seg,1);
             % Segment变量是一个备份，用来重新调整的中间量
             Segment(1:a) = Seg;
             a = a+1;
             for i = 1:nsegs-2
-                % 每次循环,IJ,都是挨着相连的，I比J多一层，I是J的父节点
+                % 每次循环,IJ,都是挨着相连的，I比J少一层，I是J的父节点
                 I = SubSegs(nsegs-i); % segment to be combined to the first segment
                 J = SubSegs(nsegs-i-1); % above segment's child to be combined next
-                % 大SP保存，在I分支的第SP位置layer开始下一个分支，即J
+                % 0403改
+                % 大SP保存，在I分支的父分支的第SP位置layer开始下一个分支，即I
                 SP = spar(I,2);  % layer index of the child in the parent
                 % 取出I处片段的集合索引
                 SegC = Segs{I};
-                % 小sp保存，在J分支的第sp位置layer开始下一个分支，即下一个I
+                % 小sp保存，在I分支的第sp位置layer开始下一个分支，即下一个J
                 sp = spar(J,2);  % layer index of the child's child in the child
-                % 
+                % 0403猜
+                % SP>=a-2,超过主干分支部分（一般第一次都不会进入，第二次必进入这个if）
                 if SP >= a-2 % Use the whole parent
                     Segment(a:a+sp-1) = SegC(1:sp);
                     spar(J,2) = a+sp-1;
@@ -288,6 +297,7 @@ while LenDisRatio > MaxLenDisRatio
                 else % Use only bottom part of the parent
                     Segment(SP+1:SP+sp) = SegC(1:sp);
                     % 底下这个+1不太懂
+                    % 0403单纯的数组操作，保证下一个索引位置
                     a = SP+sp+1;
                     spar(J,2) = SP+sp;
                 end
@@ -295,7 +305,8 @@ while LenDisRatio > MaxLenDisRatio
             end
             
             % Combine the last segment to the branch
-            % 将最后一个分支，与主干连结
+            % 将最后一个分支，与主干连结，最后一步
+            % 逻辑与上面的while一样
             I = SubSegs(1);
             SP = spar(I,2);
             SegC = Segs{I};
@@ -307,6 +318,7 @@ while LenDisRatio > MaxLenDisRatio
                 Segment(SP+1:SP+nc) = SegC;
                 a = SP+nc;
             end
+            % 将这个分支，从整棵树的底部Base，一直到树分支尖的layer
             Stems{j,1} = Segment(1:a);
         else
             Stems{j,1} = Seg;
@@ -314,6 +326,8 @@ while LenDisRatio > MaxLenDisRatio
         
     end
     
+    % 上面本质上是把集合的索引值，都赋值了，直接按照坐标去找
+
     % Calculate the lengths of the candidate stems
     % 每个竖起来的长度为1.4？
     N = ceil(0.5/dmin/1.4); % number of layers used for linear length approximation
@@ -343,15 +357,21 @@ while LenDisRatio > MaxLenDisRatio
                 Nodes(j,:) = average(P(S,:));
             end
         end
-        % 计算从第二层一直到最顶部，和第一层xyz之间的差值
+        % 计算Nodes内，后一个减前一个的差值
         V = Nodes(2:end,:)-Nodes(1:end-1,:);
+        % 计算所有相邻两个中心点间的差值和的和
         Lengths(i) = sum(sqrt(sum(V.*V,2)));
+        % Nodes内最后一个值减第一个值的差值
         V = Nodes(end,:)-Nodes(1,:);
+        % 计算三维范式
         Heights(i) = norm(V);
     end
     
+    % 长度/高度
     LenDisRatio = Lengths./Heights;
+    % LenDisRatio返回最小值，I返回之前的索引值位置
     [LenDisRatio,I] = min(LenDisRatio);
+    % 这个函数返回StemTop所对应的
     StemTop = StemTops(I);
     SearchDist = SearchDist+1;
     if SearchDist > 3
@@ -594,17 +614,20 @@ while any(UnMod)
             
         % 如果是第一分支
         elseif SegInd > 1 && BranchOrder <= 1 % first order branches
-            
+            % 找分支的顶部
             TipSeg = search_branch_top(P,Ce,Bal,Segs,SPar,SChi,dmin,SegInd);
             
         % 主干
         else % Stem
-            
+            % 找主干的顶部
             TipSeg = search_stem_top(P,Ce,Bal,Segs,SPar,dmin);
             
         end
         
         if TipSeg ~= SegInd
+            % 如果当前找到的TipSeg根目录不在树干的Base
+            % 下面前面几步和上面刚刚出来的
+            % search_stem_top函数内的逻辑相似
             % Tip point was not in the current segment, modify segments
             SubSegments(1) = TipSeg;
             NSubSegs = 1;
@@ -623,10 +646,14 @@ while any(UnMod)
                 SegC = Segs{I};
                 N = size(SegP,1);
                 sp = SPar(J,2);  % layer index of the child's child in the child
+                % 下面不懂
                 if SP >= N-2 % Use the whole parent
+                    % 将分支和主干的layer连结在一起
                     Segs{SegInd} = [SegP; SegC(1:sp)];
                     if sp < size(SegC,1) % use only part of the child segment
+                        % SegC的剩下部分,存在Segs{I}中
                         Segs{I} = SegC(sp+1:end);
+                        % 更改layer
                         SPar(I,2) = N+sp;
                         
                         ChildSegs = SChi{I};
@@ -654,21 +681,30 @@ while any(UnMod)
                     end
                     
                     SubSegments(NSubSegs-i) = SegInd;
+                % 将父节点分成两份
                 else % divide the parent segment into two parts
                     ns = ns+1;
+                    % SP是当前分支的父分支的“一半”
+                    % 将SP之后的备份一下
                     Segs{ns} = SegP(SP+1:end); % the top part of the parent forms a new segment
                     SPar(ns,1) = SegInd;
                     SPar(ns,2) = SP;
+                    % UnMode内除了第一个以外，其他均为1
                     UnMod(ns) = true;
                     
+                    % 从底往上找
                     Segs{SegInd} = [SegP(1:SP); SegC(1:sp)];
                     
                     ChildSegs = SChi{SegInd};
                     if size(ChildSegs,1) < size(ChildSegs,2)
                         ChildSegs = ChildSegs';
                     end
+                    % 找到是哪儿个分支，引出来的
                     K = SPar(ChildSegs,2) > SP;
+                    % 保存选择出来的分支
                     SChi{SegInd} = ChildSegs(~K);
+                    % 将剩余的分支，备份保存在最后一行
+                    % ns现在是总数+1
                     ChildSegs = ChildSegs(K);
                     SChi{ns} = ChildSegs;
                     SPar(ChildSegs,1) = ns;
