@@ -110,7 +110,9 @@ if ModBases
     if AddChild
         % Add the expanded base to the child and remove it from the parent
         for i = 2:ns
+            % 取出分支
             SegC = Segs{i};
+            % 取出该分支的父节点
             SegP = Segs{SPar(i,1)};
             [SegP,Base] = modify_parent(P,Bal,Ce,SegP,SegC,SPar(i,2),inputs.PatchDiam1,base);
             Segs{SPar(i,1)} = SegP;
@@ -407,6 +409,8 @@ Segments = zeros(ns,1); % the given segment and its sub-segments
 Segments(1) = BI;
 t = 2;
 C = SChi{BI};
+
+% 这个while不停的找分支的子分支,一直找到头
 while ~isempty(C)
     n = length(C);
     Segments(t:t+n-1) = C;
@@ -414,16 +418,21 @@ while ~isempty(C)
     t = t+n;
 end
 if t > 2
+    % 删掉最后最顶的分支?
     t = t-n;
 end
+% 将所有子分支,子子分支保存
 Segments = Segments(1:t);
 
 % Determine linear distances from the segment tips to the base of the given
 % segment
 LinearDist = zeros(t,1); % linear distances from the 
 Seg = Segs{Segments(1)};
+% 分支Base的中心点
 BranchBase = average(Ce(Seg{1},:)); % center of branch's base
 for i = 1:t
+    % 计算每个layer的中心点
+    % 和Base的欧几里得距离
     Seg = Segs{Segments(i)};
     C = average(Ce(Seg{end},:)); % tip
     LinearDist(i) = norm(C-BranchBase);
@@ -432,7 +441,10 @@ LinearDist = LinearDist(1:t);
 
 % Sort the segments according their linear distance, from longest to
 % shortest
+% 按照降序排名
+% LinearDist是降序排后的结果,I中保存的是排序前的索引值
 [LinearDist,I] = sort(LinearDist,'descend');
+% 将I转换为相对应的branch索引
 Segments = Segments(I);
 
 % Define alternative branches from Segments
@@ -440,9 +452,11 @@ Branches = cell(t,1); % the alternative segments as cell layers
 SubSegs = zeros(100,1); % Segments to be combined
 Segment = cell(3000,1);
 for j = 1:t
+    % BI是当前针对的分支,去除他的layer集合索引,备份
     Seg = Segs{BI};
     spar = SPar;
     if Segments(j) ~= BI
+        % 类似上一个函数,针对主干的搜索
         % Tip point was not in the current segment, modify segments
         SubSegs(1) = Segments(j);
         k = 1;
@@ -495,6 +509,7 @@ end
 
 % Calculate the lengths of the candidate branches. Stop, if possible, when
 % the ratio length/linear distance is less 1.2 (branch is quite straight)
+% 主干这里用的是0.5(2倍)
 N = ceil(0.25/dmin/1.4); % number of layers used for linear length approximation
 i = 1; % running index for while loop
 Continue = true; % continue while loop as long as "Continue" is true
@@ -528,6 +543,7 @@ while i <= t && Continue
     
     % Continue as long as the length is less than 20% longer than the linear dist.
     % and the linear distance is over 75% of the maximum
+    % 0403下面这段真的不懂为啥这么分
     if Lengths(i)/LinearDist(i) < 1.20 && LinearDist(i) > 0.75*LinearDist(1)
         Continue = false;
         BranchTop = Segments(i);
@@ -537,6 +553,8 @@ end
 
 % If no suitable segment was found, try first with less strict conditions,
 % and if that does not work, then select the one with the largest linear distance
+% 如果上面的if没有找到符合条件的
+% 就通过下面这个if
 if Continue
     L = Lengths./LinearDist;
     i = 1;
@@ -579,8 +597,11 @@ while any(UnMod)
     
     if ~isempty(Segs(SegInd)) && ~isempty(ChildSegs)
         
-        % 如果是二阶分支+高位置的分支？
+        % 如果是二阶分支 或 更高位置的分支？
         if SegInd > 1 && BranchOrder > 1 % 2nd-order and higher branches
+
+            % 不太理解
+
             % Search the tip of the sub-branches with biggest linear
             % distance from the current branch's base 
             SubSegments(1) = SegInd;
@@ -591,6 +612,7 @@ while any(UnMod)
                 ChildSegs = vertcat(SChi{ChildSegs});
                 NSubSegs = NSubSegs+n;
             end
+            % 如果存在大于2阶的子节点
             if NSubSegs > 2
                 NSubSegs = NSubSegs-n;
             end
@@ -598,10 +620,12 @@ while any(UnMod)
             % Find tip-points
             Top = zeros(NSubSegs,3);
             for i = 1:NSubSegs
+                % 在segs中，subsegments(i)处的最后一个数组的第一个元素的中心值
                 Top(i,:) = Ce(Segs{SubSegments(i)}{end}(1),:);
             end
             
             % Define bottom of the branch
+            % 计算当前分支最下面Base的中心点
             BotLayer = Segs{SegInd}{1};
             Bottom = average(Ce(BotLayer,:));
             
@@ -709,11 +733,14 @@ while any(UnMod)
                     SChi{ns} = ChildSegs;
                     SPar(ChildSegs,1) = ns;
                     SPar(ChildSegs,2) = SPar(ChildSegs,2)-SP;
+                    % 重新分配，分成两个分支
                     SChi{SegInd} = [SChi{SegInd}; ns];
                     if sp < size(SegC,1) % use only part of the child segment
                         Segs{I} = SegC(sp+1:end);
+                        % 0403
+                        % 严重怀疑，下面这个位置代表的是，这个分支的总layer数
                         SPar(I,2) = SP+sp;
-                        
+                        % 下面这几步是把，第二分支的Schi和SPar中的部分，重新分配
                         ChildSegs = SChi{I};
                         K = SPar(ChildSegs,2) <= sp;
                         SChi{I} = ChildSegs(~K);
@@ -741,6 +768,7 @@ while any(UnMod)
             end
             
             % Combine the last segment to the branch
+            % 将最后一个分支补全
             I = SubSegments(1);
             SP = SPar(I,2);
             SegP = Segs{SegInd};
@@ -757,6 +785,7 @@ while any(UnMod)
                     ChildSegs = ChildSegs';
                 end
                 c = set_difference(SChi{SegInd},I,Fal);
+                % 将本身自带的子节点,和最后分支的子节点结合在一起
                 SChi{SegInd} = [c; ChildSegs];
                 SPar(ChildSegs,1) = SegInd;
                 SPar(ChildSegs,2) = N+SPar(ChildSegs,2);
@@ -796,9 +825,13 @@ while any(UnMod)
     % Select the next branch, use increasing branching order
     
     if BranchOrder > 0 && any(UnMod(SegChildren))
+        % +1开始下一个
         ChildSegInd = ChildSegInd+1;
+        % 
         SegInd = SegChildren(ChildSegInd);
+    % 如果是主干
     elseif BranchOrder == 0
+        % 下一步开始找分支
         BranchOrder = BranchOrder+1;
         SegChildren = SChi{1};
         SegInd = SegChildren(1);
@@ -808,9 +841,14 @@ while any(UnMod)
         SegChildren = SChi{1};
         while i < BranchOrder && ~isempty(SegChildren)
             i = i+1;
+            % 调用cellfun的“length”方法
+            % 返回SChi中处于SegChildren处的数组长度
+            % 返回当前一阶分支的二阶分支的个数
             L = cellfun('length',SChi(SegChildren));
+            % K中保存，含有二阶分支的一阶分支索引
             Keep = L > 0;
             SegChildren = SegChildren(Keep);
+            % 保存二阶分支的索引
             SegChildren = vertcat(SChi{SegChildren});
         end
         I = UnMod(SegChildren);
@@ -824,6 +862,7 @@ end
 
 % Modify indexes by removing empty segments
 Empty = true(ns,1);
+% 将modify后不包含layer的分支标记
 for i = 1:ns
     if isempty(Segs{i})
         Empty(i) = false;
@@ -831,15 +870,18 @@ for i = 1:ns
 end
 Segs = Segs(Empty);
 Ind = (1:1:ns)';
+% 不为0的分支个数
 n = nnz(Empty);
 I = (1:1:n)';
 Ind(Empty) = I;
+% 整理SPar
 SPar = SPar(Empty,:);
 J = SPar(:,1) > 0;
 SPar(J,1) = Ind(SPar(J,1));
 for i = 1:ns
     if Empty(i)
         ChildSegs = SChi{i};
+        % 更新新的子节点？
         if ~isempty(ChildSegs)
             ChildSegs = Ind(ChildSegs);
             SChi{i} = ChildSegs;
@@ -851,13 +893,16 @@ ns = n;
 
 % Modify SChi
 for i = 1:ns
+    % 备份子节点
     ChildSegs = SChi{i};
+    % 调整
     if size(ChildSegs,2) > size(ChildSegs,1) && size(ChildSegs,1) > 0
         SChi{i} = ChildSegs';
     elseif size(ChildSegs,1) == 0 || size(ChildSegs,2) == 0
         SChi{i} = zeros(0,1);
     end
     Seg = Segs{i};
+    % 找到当前分支一共有多少层layer
     n = max(size(Seg));
     for j = 1:n
         ChildSegs = Seg{j};
@@ -1026,6 +1071,11 @@ end % End of function
 
 
 function [SegP,Base] = modify_parent(P,Bal,Ce,SegP,SegC,nl,PatchDiam,base)
+
+% P点云xyz坐标
+% Bal是cover_sets分类后的集合
+% Ce是集合的中心点
+% 
 
 % Expands the base of the branch backwards into its parent segment and
 % then removes the expansion from the parent segment.
