@@ -98,22 +98,28 @@ if nargout <= 3
 
 % else代码没看
 else
+    % Lexord中不同值的个数
     nc = size(unique(LexOrd),1);
     
     % Define "Partition"
+    % N(1)xN(2)xN(3)维的全0矩阵，正方形的长宽高三维个数
     Cubes = zeros(N(1),N(2),N(3),'uint32');
+    % ncx1维度的元胞数组
     Partition = cell(nc,1);
     np = size(P,1);     % number of points
     p = 1;              % The index of the point under comparison
     c = 0;
     while p <= np
         t = 1;
+        % 找到值一样的点坐标
         while (p+t <= np) && (LexOrd(p) == LexOrd(p+t))
             t = t+1;
         end
         q = SortOrd(p);
         c = c+1;
+        % 将位于P内的索引值，存入Partition中
         Partition{c,1} = SortOrd(p:p+t-1);
+        % Cubes中有很多很多的空白，一共只有nc个位置有值
         Cubes(CubeCoord(q,1),CubeCoord(q,2),CubeCoord(q,3)) = c;
         p = p+t;
     end

@@ -159,10 +159,15 @@ elseif inputs.OnlyTree
     % Select the stem sets from the previous segmentation and define the
     % base
     BaseHeight = min(1.5,0.02*aux.Height);
+
+    % SegmentOfPoint对应的是P中每个点所对应的Seg索引值
     SoP = segment.SegmentOfPoint(cover.center);
+    % 取出属于主干的点
     stem = aux.Ind(SoP == 1);
+    % 取出小于底部高度的值
     I = Ce(stem,3) < aux.Hmin+BaseHeight;
     Base = stem(I);
+    % 全0
     Forb = aux.Fal;
 else
     % Point cloud contains non-tree points.
@@ -554,7 +559,9 @@ nb = size(Bal,1);
 MainBranches = zeros(nb,1);
 SegmentOfPoint = segment.SegmentOfPoint;
 % Determine which branch indexes define the main branches
+% Seg分支总数
 MainBranchIndexes = false(max(SegmentOfPoint),1);
+% 分支123和主干,表示已分类
 MainBranchIndexes(1) = true;
 MainBranchIndexes(segment.branch1indexes) = true;
 MainBranchIndexes(segment.branch2indexes) = true;
@@ -563,6 +570,7 @@ for i = 1:nb
     BranchInd = nonzeros(SegmentOfPoint(Bal{i}));
     if ~isempty(BranchInd)
         ind = min(BranchInd);
+        % 如果属于123分支，那么属于MainBranch
         if MainBranchIndexes(ind)
             MainBranches(i) = min(BranchInd);
         end
@@ -571,9 +579,11 @@ end
 
 % Define the trunk sets
 Trunk = aux.Fal;
+% 标记已经被标记的分支
 Trunk(MainBranches > 0) = true;
 
 % Update the neighbors to make the main branches connected
+% 根据之前定义的集合的中心点，正方体的边长x3
 [Par,CC] = cubical_partition(Ce,3*inputs.PatchDiam2Max,10);
 Sets = zeros(aux.nb,1,'uint32');
 BI = max(MainBranches);

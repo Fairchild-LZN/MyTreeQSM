@@ -60,6 +60,7 @@ function cover = cover_sets(P,inputs,RelSize)
 %   center      Center points of the cover sets, (n_sets x 1)-vector
 %   neighbor    Neighboring cover sets of each cover set, (n_sets x 1)-cell
 
+% 转换为double类型
 if ~isa(P,'double')
     P = double(P);
 end
@@ -148,14 +149,27 @@ if nargin == 2
     % 只保留nb个类别的中心点
     Cen = Cen(1:nb);
 else
+
+    % 
+    % 初步猜测这步骤是按照RelSize重新分类
+    % 
+
     %% Use relative sizes (the size varies)
     % Partition the point cloud into cubes
+    % 第二个半径 0.08
     BallRad = inputs.BallRad2;
+    % 0.07
     PatchDiamMin = inputs.PatchDiam2Min;
+    % 0.03
     PatchDiamMax = inputs.PatchDiam2Max;
+    % 1
     nmin = inputs.nmin2;
+    % 0410不理解意义 == 0.4286
     MRS = PatchDiamMin/PatchDiamMax;
+    % RelSize里最大为256，最小应该是1（反推时RelSize是63）
     r = double(1.5*(double(min(RelSize))/256*(1-MRS)+MRS)*BallRad+1e-5); % minimum radius
+    % NE==3
+    % NE感觉其实没啥用
     NE = 1+ceil(BallRad/r);
     if NE > 4
         r = PatchDiamMax/4;
@@ -163,30 +177,41 @@ else
     end
     [Partition,CC,~,Cubes] = cubical_partition(P,r,NE);
     
+    % 去除掉RelSize==0的点
     I = RelSize == 0; % Don't use points with no size determined
     NotExa(I) = false;
     
     % Define random permutation of points (results in different covers for same input)
     % so that first small sets are generated
+    % np个(p中点的总数)
     RandPerm = zeros(np,1,'uint32');
+    % 选出RelSize<=32的点
     I = RelSize <= 32;
+    % ind是1-np的索引
     ind = uint32(1:1:np)';
     I = ind(I);
+    % RelSize<=32的个数
     t1 = length(I); 
+    % 将这t1个数，随机存放在前1-t1内
     RandPerm(1:1:t1) = I(randperm(t1));
+    % 取出RelSize在32-128之间
     I = RelSize <= 128 & RelSize > 32;
     I = ind(I);
     t2 = length(I);
+    % 随即保存
     RandPerm(t1+1:1:t1+t2) = I(randperm(t2));
     t2 = t2+t1;
+    % 取出RelSize中大于128的
     I = RelSize > 128;
     I = ind(I);
     t3 = length(I);
     RandPerm(t2+1:1:t2+t3) = I(randperm(t3));
+    % 清楚变量ind 和 I
     clearvars ind I
     %RandPerm = uint32(randperm(np)); % random permutation of points
 
     Point = zeros(round(np/1000),1,'uint32');
+    % e==0.01
     e = BallRad-PatchDiamMax;
     for i = 1:np
         if NotExa(RandPerm(i))
@@ -196,18 +221,23 @@ else
             Radius = Dmin+sqrt(rs)*e;
             N = ceil(Radius/r); % = number of cells needed to include the ball
             cubes = Cubes(CC(Q,1)-N:CC(Q,1)+N,CC(Q,2)-N:CC(Q,2)+N,CC(Q,3)-N:CC(Q,3)+N);
+            % 取出Cubes中的非0值
             I = cubes > 0;
             cubes = cubes(I);
             Par = Partition(cubes);
             S = cellfun('length',Par);
+            % cumsum函数，返回S向量，从上往下的个数和
             stop = cumsum(S);
+            % start为在stop向量最开始加个0，然后所有值+1
             start = [0; stop]+1;
             for k = 1:length(stop)
                 Point(start(k):stop(k)) = Par{k};
             end
             points = Point(1:stop(k));
+            % 将周围这一圈的值与中心点相减
             V = [P(points,1)-P(Q,1) P(points,2)-P(Q,2) P(points,3)-P(Q,3)];
             dist = sum(V.*V,2);
+            % 保留R平方内的点
             J = dist < Radius^2;
             if nnz(J) >= nmin
                 I = points(J);
