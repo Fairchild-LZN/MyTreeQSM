@@ -1075,7 +1075,11 @@ function [SegP,Base] = modify_parent(P,Bal,Ce,SegP,SegC,nl,PatchDiam,base)
 % P点云xyz坐标
 % Bal是cover_sets分类后的集合
 % Ce是集合的中心点
-% 
+% SegP是父节点的分支每层layer
+% SegC是当前分支的每层layer
+% nl是SegC在父节点的哪儿个layer
+% PatchDiam=0.08
+% base是空元胞数组
 
 % Expands the base of the branch backwards into its parent segment and
 % then removes the expansion from the parent segment.
@@ -1147,6 +1151,9 @@ end % End of function
 
 
 function D = segment_direction(Ce,Seg,nl)
+
+% 定义 segment的方向?
+
 
 % Defines the direction of the segment
 

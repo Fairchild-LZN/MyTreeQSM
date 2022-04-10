@@ -42,8 +42,13 @@ Cen = cover.center;
 Nei = cover.neighbor;
 Segs = segment.segments;
 SChi = segment.ChildSegment;
+
+% 点云xyz的个数
 np = size(P,1);     % number of points
+% Segs段落的个数
 ns = size(Segs,1);  % number of segments
+
+% APRIORI算法???
 
 %% Use branching order and height as apriori info
 % Determine the branch orders of the segments
@@ -58,8 +63,11 @@ end
 maxO = order+1; % maximum branching order (plus one)
 
 % Determine tree height
+% 整棵树最高的点
 Top = max(P(Cen,3));
+% 整棵树最低的点
 Bot = min(P(Cen,3));
+% 树的高度
 H = Top-Bot;
 
 %% Determine "base size" compared to the stem base
@@ -83,12 +91,16 @@ for i = 2:ns
     n = size(S,1);
     if n >= 2
         m = min([6 n]);
+        % 根据每个树枝，所对应的每层layer包括的集合个数，去区分分段
         BaseSize(i) = ceil(mean(cellfun(@length,S(2:m)))/BaseSize(1)*256);
     else
         BaseSize(i) = length(S{1})/BaseSize(1)*256;
     end
-    bot = min(P(Cen(S{1}),3)); 
+    % 找到这些集合最小的中心点高度
+    bot = min(P(Cen(S{1}),3));
+    % 当前的高度 
     h = bot-Bot; % height of the segment's base
+    % “反向”与整棵树的比    (H-h)/H
     BS = ceil(256*(maxO-Ord(i))/maxO*(H-h)/H); % maximum apriori base size
     if BaseSize(i) > BS
         BaseSize(i) = BS;
@@ -109,6 +121,7 @@ for i = 1:ns
 end
 
 %% Adjust the relative size at the base of child segments
+% 备份
 RS0 = RS;
 for i = 1:ns
     C = SChi{i};
@@ -119,10 +132,17 @@ for i = 1:ns
             B = S{1};
             N = vertcat(Nei{B});
             if size(S,1) > 1
+                % 返回N中存在，而S{2}中不存在的
+                % 差集
+                % N之前是，S第一层集合的“邻居”集合
+                % 排除掉不属于S第二层的集合
+                % 剩下的可能是属于父节点的吧？0408
                 N = setdiff(N,S{2});
             end
+            % 返回N和B的并集
             N = union(N,B);
             N = vertcat(Bal{N});
+            % 0408 不理解啊，为啥base要除以2
             RS(N) = RS0(N)/2;
         end
     end
