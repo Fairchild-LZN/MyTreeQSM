@@ -164,7 +164,7 @@ elseif inputs.OnlyTree
     SoP = segment.SegmentOfPoint(cover.center);
     % 取出属于主干的点
     stem = aux.Ind(SoP == 1);
-    % 取出小于底部高度的值
+    % 取出小于底部base高度的值
     I = Ce(stem,3) < aux.Hmin+BaseHeight;
     Base = stem(I);
     % 全0

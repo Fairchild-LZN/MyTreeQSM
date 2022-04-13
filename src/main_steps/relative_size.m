@@ -128,8 +128,11 @@ for i = 1:ns
     n = length(C);
     if n > 0
         for j = 1:n
+            % 选出当前的子节点分支
             S = Segs{C(j)};
+            % 取出第一层Base
             B = S{1};
+            % 找邻居集合（上下都有）
             N = vertcat(Nei{B});
             if size(S,1) > 1
                 % 返回N中存在，而S{2}中不存在的
@@ -140,9 +143,18 @@ for i = 1:ns
                 N = setdiff(N,S{2});
             end
             % 返回N和B的并集
+            % S{1}和属于父节点的集合
             N = union(N,B);
             N = vertcat(Bal{N});
             % 0408 不理解啊，为啥base要除以2
+            % 0412
+            % 前面计算时，是从2：m的，就代表没有用第一层
+            % 再结合correct_segment内的最后一步
+            % 将每个分支都“往后延”了一截（这步仍然存疑）
+            % 所以这里骚操作了一波（但为什么除2仍不理解）
+            % 0412再更新
+            % 上面好像又不对
+            % 主要是setdiff和union这两步到底去除添加了哪儿些集合？
             RS(N) = RS0(N)/2;
         end
     end

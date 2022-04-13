@@ -134,6 +134,7 @@ end
 SPar = SPar(:,1);
 
 % Modify the size and type of SChi and Segs, if necessary
+% 对子节点做统一，程序运行时可能出现一些小错误
 ns = size(Segs,1);
 for i = 1:ns
     C = SChi{i};
@@ -166,6 +167,7 @@ end
 for i = 1:ns
     S = Segs{i};
     S = vertcat(S{:});
+    % 将P内每个点，所对应的分支保存在SegmentOfPoint中
     SegmentOfPoint(vertcat(Bal{S})) = i;
 end
 segment.SegmentOfPoint = SegmentOfPoint;
@@ -190,7 +192,11 @@ end % End of main function
 
 
 function StemTop = search_stem_top(P,Ce,Bal,Segs,SPar,dmin)
+% 0407
 % 从最中间的点(集合)开始找？
+
+% 0411
+% 从最底下的集合开始找
 
 % P是原始xyz点
 % Ce是集合中心点坐标
@@ -509,7 +515,7 @@ end
 
 % Calculate the lengths of the candidate branches. Stop, if possible, when
 % the ratio length/linear distance is less 1.2 (branch is quite straight)
-% 主干这里用的是0.5(2倍)
+% 主干这里用的是0.5(1/2倍)
 N = ceil(0.25/dmin/1.4); % number of layers used for linear length approximation
 i = 1; % running index for while loop
 Continue = true; % continue while loop as long as "Continue" is true
@@ -614,6 +620,7 @@ while any(UnMod)
             end
             % 如果存在大于2阶的子节点
             if NSubSegs > 2
+                % 这里的n只删除了最后一次搜索
                 NSubSegs = NSubSegs-n;
             end
             
@@ -1093,7 +1100,9 @@ if ~isempty(Base)
     
     if length(Base) > 1
         BaseCent = average(Ce(Base,:));
+        % db返回base周围各个集合距离中心点的距离
         db = distances_to_line(Ce(Base,:), DirChi', BaseCent); % distances of the sets in the base to the axis of the branch
+        % 找到距离的最大值，乘2就是圆的直径
         DiamBase = 2*max(db);  % diameter of the base
     elseif length(Bal{Base}) > 1
         BaseCent = average(P(Bal{Base},:));
@@ -1105,6 +1114,7 @@ if ~isempty(Base)
     end
     
     % Determine the number of cover set layers "n" to be checked
+    % 父节点与子节点base的夹角？几何含义需确认0411
     Angle = abs(DirChi'*DirPar);  % abs of cosine of the angle between component and segment directions
     Nlayer = max([3,ceil(Angle*2*DiamBase/PatchDiam)]);
     if Nlayer > nl  % can go only to the bottom of the segment
