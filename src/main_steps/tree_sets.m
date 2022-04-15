@@ -567,6 +567,8 @@ MainBranchIndexes(segment.branch1indexes) = true;
 MainBranchIndexes(segment.branch2indexes) = true;
 MainBranchIndexes(segment.branch3indexes) = true;
 for i = 1:nb
+    % SegmentOfPoint内非0点所对应的分支索引
+    % 选出当前集合中所对应的分支索引？0413
     BranchInd = nonzeros(SegmentOfPoint(Bal{i}));
     if ~isempty(BranchInd)
         ind = min(BranchInd);
@@ -590,6 +592,7 @@ BI = max(MainBranches);
 N = size(Par);
 for i = 1:BI
     if MainBranchIndexes(i)
+        % 在branch里找到，MainBranches中等于i的索引位置
         Branch = MainBranches == i; % The sets forming branch "i"
         % the connected components of "Branch":
         Comps = connected_components(Nei,Branch,1,aux.Fal); 
