@@ -1,19 +1,31 @@
 function [Pass,c] = surface_coverage_filtering(P,c,lh,ns)
 
+% lh==0.02
+% ns==20
+
 % Filter a 3d-point cloud based on given cylinder (axis and radius) by 
 % dividing the point cloud into "ns" equel-angle sectors and "nl" equal-length
 % layers along the axis. For each sector-layer intersection (a region in 
-% the cylinder surface) keep only the points closest to the centre. 
+% the cylinder surface) keep only the points closest to the centre.
+
+% 将点按照角度分成20份,按照0.02的高度分成几份
 
 % Compute the distances, heights and angles of the points
+
+% c.axis圆柱体的单位方向向量
+% c.start圆柱体开始的中心点
+
 [d,V,h] = distances_to_line(P,c.axis,c.start);
 h = h-min(h);
 [U,W] = orthonormal_vectors(c.axis);
 V = V*[U W];
+% 求反正切+pai
 ang = atan2(V(:,2),V(:,1))+pi;
 
 % Sort based on lexicographic order of (sector,layer)
+% 按照高度分成nl类
 nl = ceil(c.length/lh);
+% c.length是单位高度??0416
 Layer = ceil(h/c.length*nl);
 Layer(Layer == 0) = 1;
 Layer(Layer > nl) = nl;
@@ -34,11 +46,13 @@ while p <= np
     end
     D = ds(p:p+t-1);
     I = D <= min(D)+0.01;
+    % 求当前这部分的平均误差值
     Dis(LexOrd(p)) = mean(D(I));
     p = p+t;
 end
 
 % Compute the number of sectors based on the estimated radius
+% 求中位数
 R = median(Dis(Dis > 0));
 a = max(0.02,0.2*R);
 ns = ceil(2*pi*R/a);

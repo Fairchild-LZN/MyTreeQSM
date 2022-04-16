@@ -141,7 +141,6 @@ for k = 1:NumOfSeg
         %% Some initialization about the segment
         % 当前研究的分支
         Seg = Segs{si};      % the current segment under analysis
-<<<<<<< HEAD
         % 当前分支包括多少层
         nl = max(size(Seg));  % number of cover set layers in the segment
         [Sets,IndSets] = verticalcat(Seg); % the cover sets in the segment
@@ -151,36 +150,33 @@ for k = 1:NumOfSeg
         % 找到每个集合对应的点
         Points = vertcat(cover.ball{Sets}); % the points in the segments
         % 点的个数
-=======
-        % 当前分支包括的layer个数
-        nl = max(size(Seg));  % number of cover set layers in the segment
-        [Sets,IndSets] = verticalcat(Seg); % the cover sets in the segment
-        
-        % 当前分支包括的集合个数
-        ns = length(Sets);   % number of cover sets in the current segment
-        % 当前分支包括的每个点云xyz坐标
-        Points = vertcat(cover.ball{Sets}); % the points in the segments
-        % 当前分支的点云点个数
->>>>>>> 68d380834b2ca0f3c6dc83b8ad31b604c7cb669f
         np = length(Points);         % number of points in the segment
         
         % Determine indexes of points for faster definition of regions
         BallSize = cellfun('length',cover.ball(Sets));
         IndPoints = ones(nl,2); % indexes for points in each layer of the segment
         for j = 1:nl
+          % 计入每层的个数
             IndPoints(j,2) = sum(BallSize(IndSets(j,1):IndSets(j,2)));
         end
-        % 累计
+        % 每层点云个数累计和
         IndPoints(:,2) = cumsum(IndPoints(:,2));
+        % 向下平移+1
         IndPoints(2:end,1) = IndPoints(2:end,1)+IndPoints(1:end-1,2);
+        % 分支的底部
         Base = Seg{1};          % the base of the segment
         nb = IndPoints(1,2); % number of points in the base
 
         % Reconstruct only large enough segments
+        % nl层数
+        % np分段点总数
+        % nb当前已经拟合的点个数
+        % ns集合总个数
         if nl > 1 && np > nb && ns > 2 && np > 20 && ~isempty(Base) 
             
             %disp([k si])
             %% Cylinder fitting
+            % IndPoints每层点个数的累计，nl是分支层数，si是当前分支是第几个
             [cyl,Reg] = cylinder_fitting(P,Points,IndPoints,nl,si);
             % 返回radius中的元素个数
             nc = numel(cyl.radius);
@@ -273,7 +269,8 @@ end % End of main function
 function [cyl,Reg] = cylinder_fitting(P,Points,Ind,nl,si)
 
 if nl > 6
-    i0 = 1;     i = 4; % indexes of the first and last layers of the region
+    i0 = 1;     
+    i = 4; % indexes of the first and last layers of the region
     t = 0;
     Reg = cell(nl,1);
     cyls = cell(11,1);
@@ -281,7 +278,9 @@ if nl > 6
     data = zeros(11,4);
     while i0 < nl-2
         %% Fit at least three cylinders of different lengths
+        % 当前最底部的两层的中心值
         bot = Points(Ind(i0,1):Ind(i0+1,2));
+        % 求这些点的中心值
         Bot = average(P(bot,:)); % Bottom axis point of the region
         again = true;
         j = 0;
@@ -289,9 +288,11 @@ if nl > 6
             %% Select points and estimate axis
             RegC = Points(Ind(i0,1):Ind(i+j,2)); % candidate region
             % Top axis point of the region:
+            % 当前最顶部的两层的中心值
             top = Points(Ind(i+j-1,1):Ind(i+j,2));
             Top = average(P(top,:)); 
             % Axis of the cylinder:
+            % 圆柱单位向量？
             Axis = Top-Bot; 
             c0.axis = Axis/norm(Axis);
             % Compute the height along the axis:
@@ -309,11 +310,14 @@ if nl > 6
                 Top = Top+(max(h)-ht)*c0.axis;
             end
             % Compute the height of the Top:
+            % 计算圆柱体的高度
             ht = (Top-c0.start)*c0.axis';
             Sec = h <= ht & h >= minh; % only points below the Top
             c0.length = ht-minh; % length of the region/cylinder
             % The region for the cylinder fitting:
+            % reg当前点的索引
             reg = RegC(Sec);
+            % Q0点的xyz坐标
             Q0 = P(reg,:);
             
             %% Filter points and estimate radius
