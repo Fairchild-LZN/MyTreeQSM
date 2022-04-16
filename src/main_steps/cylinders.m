@@ -116,6 +116,7 @@ cylinder.mad = zeros(n,1,'single');
 
 %% Determine suitable order of segments (from trunk to the "youngest" child)
 bases = (1:1:NumOfSeg)';
+% 找到主干，SPar==0
 bases = bases(SPar(:,1) == 0);
 nb = length(bases);
 SegmentIndex = zeros(NumOfSeg,1);
@@ -125,6 +126,7 @@ for i = 1:nb
     SegmentIndex(nc) = bases(i);
     S = vertcat(SChi{bases(i)});
     while ~isempty(S)
+      % 根据子节点，将所有分支找到
         n = length(S);
         SegmentIndex(nc+1:nc+n) = S;
         nc = nc+n;
@@ -137,12 +139,17 @@ for k = 1:NumOfSeg
     si = SegmentIndex(k);
     if si > 0
         %% Some initialization about the segment
+        % 当前研究的分支
         Seg = Segs{si};      % the current segment under analysis
+        % 当前分支包括多少层
         nl = max(size(Seg));  % number of cover set layers in the segment
         [Sets,IndSets] = verticalcat(Seg); % the cover sets in the segment
         
+        % 集合个数
         ns = length(Sets);   % number of cover sets in the current segment
+        % 找到每个集合对应的点
         Points = vertcat(cover.ball{Sets}); % the points in the segments
+        % 点的个数
         np = length(Points);         % number of points in the segment
         
         % Determine indexes of points for faster definition of regions

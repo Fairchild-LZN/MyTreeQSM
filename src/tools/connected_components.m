@@ -15,6 +15,9 @@
 
 function [Components,CompSize] = connected_components(Nei,Sub,MinSize,Fal)
 
+% 函数目的：寻找没有和主干连接的点（与主干断开的）
+% 根据这些点，不断延伸找到各自连接的集合，保存并返回每个集合集
+
 % ---------------------------------------------------------------------
 % CONNECTED_COMPONENTS.M      Determines the connected components of cover
 %                                   sets using their neighbour-relation
