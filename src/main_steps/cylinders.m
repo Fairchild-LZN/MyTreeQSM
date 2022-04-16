@@ -141,6 +141,7 @@ for k = 1:NumOfSeg
         %% Some initialization about the segment
         % 当前研究的分支
         Seg = Segs{si};      % the current segment under analysis
+<<<<<<< HEAD
         % 当前分支包括多少层
         nl = max(size(Seg));  % number of cover set layers in the segment
         [Sets,IndSets] = verticalcat(Seg); % the cover sets in the segment
@@ -150,6 +151,17 @@ for k = 1:NumOfSeg
         % 找到每个集合对应的点
         Points = vertcat(cover.ball{Sets}); % the points in the segments
         % 点的个数
+=======
+        % 当前分支包括的layer个数
+        nl = max(size(Seg));  % number of cover set layers in the segment
+        [Sets,IndSets] = verticalcat(Seg); % the cover sets in the segment
+        
+        % 当前分支包括的集合个数
+        ns = length(Sets);   % number of cover sets in the current segment
+        % 当前分支包括的每个点云xyz坐标
+        Points = vertcat(cover.ball{Sets}); % the points in the segments
+        % 当前分支的点云点个数
+>>>>>>> 68d380834b2ca0f3c6dc83b8ad31b604c7cb669f
         np = length(Points);         % number of points in the segment
         
         % Determine indexes of points for faster definition of regions
@@ -158,6 +170,7 @@ for k = 1:NumOfSeg
         for j = 1:nl
             IndPoints(j,2) = sum(BallSize(IndSets(j,1):IndSets(j,2)));
         end
+        % 累计
         IndPoints(:,2) = cumsum(IndPoints(:,2));
         IndPoints(2:end,1) = IndPoints(2:end,1)+IndPoints(1:end-1,2);
         Base = Seg{1};          % the base of the segment
@@ -169,6 +182,7 @@ for k = 1:NumOfSeg
             %disp([k si])
             %% Cylinder fitting
             [cyl,Reg] = cylinder_fitting(P,Points,IndPoints,nl,si);
+            % 返回radius中的元素个数
             nc = numel(cyl.radius);
             
             %% Search possible parent cylinder
