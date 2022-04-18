@@ -15,6 +15,10 @@
 
 function [R,D,a] = rotate_to_z_axis(Vec)
 
+% 返回被旋转的矩阵
+% 生成一个和圆柱的z轴方向相同的
+% 但垂直与单位向量的向量
+
 % --------------------------------------------------------------------------
 % ROTATE_TO_Z_AXIS.M   Forms the rotation matrix to rotate the vector to 
 %                           a point along the positive z-axis. 
@@ -25,9 +29,12 @@ function [R,D,a] = rotate_to_z_axis(Vec)
 % Output 
 % R        Rotation matrix, with R * Vec = [0 0 z]', z > 0 
 
-
+% 叉积
+% 返回一个同时和A、B向量垂直的向量
 D = cross(Vec,[0 0 1]);
+% 若D不是单位向量
 if norm(D) > 0
+    % 求z轴的反余弦
     a = acos(Vec(3));
     R = rotation_matrix(D,a);
 else

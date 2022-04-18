@@ -36,6 +36,7 @@ LexOrd = [Layer Sector-1]*[1 nl]';
 ds = d(SortOrd);
 
 % Estimate the distances for each sector-layer intersection
+% 定义一个二维矩阵
 Dis = zeros(nl,ns);
 np = size(P,1);     % number of points
 p = 1;
