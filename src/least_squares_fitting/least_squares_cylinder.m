@@ -14,6 +14,9 @@
 % along with TREEQSM.  If not, see <http://www.gnu.org/licenses/>.
 
 function cyl = least_squares_cylinder(P,cyl0,weight,Q)
+
+% 利用高斯牛顿法的最小圆柱拟合
+
 % ---------------------------------------------------------------------
 % LEAST_SQUARES_CYLINDER.M   Least-squares cylinder using Gauss-Newton.
 %
@@ -44,6 +47,20 @@ function cyl = least_squares_cylinder(P,cyl0,weight,Q)
 %                   matrix inversion with a good enough condition number
 % ---------------------------------------------------------------------
 
+% output输出
+% radius    半径
+% length    长度
+% start     开始点
+% axis      
+% mad       误差？
+% SurfCov
+% SurfCovDis
+% SurfCovVol
+% dist
+% conv
+% rel
+
+
 % Changes from version 1.2.0 to 1.3.0, 14 July 2020:  
 % 1) Changed the input parameters of the cylinder to the struct format.
 % 2) Added optional input for weights
@@ -72,8 +89,11 @@ res = 0.03;
 
 % Transform the data to close to standard position via a rotation 
 % followed by a translation 
+% 返回
 Rot0 = rotate_to_z_axis(cyl0.axis);
+% 调整起始点
 Point1 = Rot0*cyl0.start';
+% 调整所有点与起始点的相对位置
 Pt = P*Rot0'-Point1';
 
 % Initial estimates and tolerance information
@@ -85,12 +105,14 @@ par = [0 0 0 0 cyl0.radius]';
 if nargin == 2
     [par,dist,conv,rel] = nlssolver(par,Pt);
 else
+    % 采用高斯牛顿法，
     [par,dist,conv,rel] = nlssolver(par,Pt,weight);
 end
 cyl.radius = single(par(5)); % radius
 
 % Inverse transformation to find axis and point on axis 
 % corresponding to original data
+% 求逆变换
 Rot = form_rotation_matrices(par(3:4));
 Axis = Rot0'*Rot'*[0 0 1]'; % axis direction
 Point = Rot0'*([par(1) par(2) 0]')+cyl0.start'; % axis point

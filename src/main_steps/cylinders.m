@@ -312,6 +312,7 @@ if nl > 6
             % Compute the height of the Top:
             % 计算圆柱体的高度
             ht = (Top-c0.start)*c0.axis';
+            % 小于最大值，大于最小值
             Sec = h <= ht & h >= minh; % only points below the Top
             c0.length = ht-minh; % length of the region/cylinder
             % The region for the cylinder fitting:
@@ -358,9 +359,12 @@ if nl > 6
                     I = h <= ht;
                     Q = Q0(I,:); % the section
                     reg = reg(I);
-                    n2 = size(Q,1);     n3 = nnz(~I);
+                    n2 = size(Q,1);     
+                    n3 = nnz(~I);
                     if n2 > 9 && n3 > 5
+                      % 重新排列？Q0前部分是小于高度的点，后半部分是高于最高的点
                         Q0 = [Q; Q0(~I,:)]; % the point cloud for cylinder fitting
+                        % 权重？？
                         W = [2/3*ones(n2,1); 1/3*ones(n3,1)]; % the weights
                         c = least_squares_cylinder(Q0,c0,W,Q);
                     else
@@ -376,7 +380,9 @@ if nl > 6
                     I3 = h > ht; % the top
                     Q = Q0(I2,:);
                     reg = reg(I2);
-                    n1 = nnz(I1);   n2 = size(Q,1);     n3 = nnz(I3);
+                    n1 = nnz(I1);   
+                    n2 = size(Q,1);     
+                    n3 = nnz(I3);
                     if n2 > 9
                         Q0 = [Q0(I1,:); Q; Q0(I3,:)];
                         W = [1/4*ones(n1,1); 2/4*ones(n2,1); 1/4*ones(n3,1)];
@@ -400,9 +406,13 @@ if nl > 6
             end
             
             % Collect fit data
+            % 拟合后的一些数据
             data(j+1,:) = [c.rel c.conv c.SurfCov c.length/c.radius];
+            % c中是当前圆柱体的一些细节
             cyls{j+1} = c;
+            % reg中是当前圆柱体包括的点索引
             regs{j+1} = reg;
+            % j是个数
             j = j+1;
             % If reasonable cylinder fitted, then stop fitting new ones 
             % (but always fit at least three cylinders)
