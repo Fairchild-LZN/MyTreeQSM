@@ -24,6 +24,12 @@ function [treedata,triangulation] = tree_data(cylinder,branch,trunk,inputs)
 % Copyright (C) 2013-2020 Pasi Raumonen
 % ---------------------------------------------------------------------
 
+% 输入：
+% cylinder：
+% 1.圆柱半径 2.圆柱长度 3.圆柱的起始点（底层中心点） 4.圆柱的方向向量
+% branch：
+% 1.分支阶数 2.分支体积 3.分支长度
+
 % Inputs:
 % cylinder:
 %   radius (Rad)    Radii of the cylinders
@@ -108,35 +114,58 @@ function [treedata,triangulation] = tree_data(cylinder,branch,trunk,inputs)
 %    length distribution: branch length per branch order.
 
 % Define some variables from cylinder:
+% 圆柱半径
 Rad = cylinder.radius;
+% 圆柱长度
 Len = cylinder.length;
+% 圆柱起始点
 Sta = cylinder.start;
+% 圆柱方向向量
 Axe = cylinder.axis;
+% 圆柱个数
 nc = length(Rad);
+% 个数的序列
 ind = (1:1:nc)';
+% 找到主干的圆柱体
 Trunk = cylinder.branch == 1; % Trunk cylinders
 clear treedata
 
 %% Tree attributes from cylinders
 % Volumes, areas, lengths, branches
+% 圆柱体积和
 treedata.TotalVolume = 1000*pi*Rad.^2'*Len;
+% 主干体积和
 treedata.TrunkVolume = 1000*pi*Rad(Trunk).^2'*Len(Trunk);
+% 分支体积和
 treedata.BranchVolume = 1000*pi*Rad(~Trunk).^2'*Len(~Trunk);
+% 圆柱的最低高度
 bottom = min(Sta(:,3));
+% top圆柱的最高高度 i最高高度的索引
 [top,i] = max(Sta(:,3));
 if Axe(i,3) > 0
+    % len(i) i向量的长度
+    % 存疑，需要再调试看一下top变化
     top = top+Len(i)*Axe(i,3);
 end
+% 整棵树的高度
 treedata.TreeHeight = top-bottom;
+% 整棵树主干的长度
 treedata.TrunkLength = sum(Len(Trunk));
+% 整棵树分支的长度和
 treedata.BranchLength = sum(Len(~Trunk));
+% 整棵树主干+分支的长度和
 treedata.TotalLength = treedata.TrunkLength+treedata.BranchLength;
+% 分支的个数
 NB = length(branch.order)-1; % number of branches
 treedata.NumberBranches = NB;
+% 最远的分支
 BO = max(branch.order); % maximum branch order
 treedata.MaxBranchOrder = BO;
+% 主干的表面积
 treedata.TrunkArea = 2*pi*sum(Rad(Trunk).*Len(Trunk));
+% 分支的表面积
 treedata.BranchArea = 2*pi*sum(Rad(~Trunk).*Len(~Trunk));
+% 整棵树的表面积
 treedata.TotalArea = 2*pi*sum(Rad.*Len);
 
 %% Diameter at breast height (dbh)
@@ -155,9 +184,11 @@ else
 end
 
 %% Tree Location
+% 树位置
 treedata.location = Sta(1,:);
 
 %% Stem taper
+% 主干每个圆柱的半径
 R = Rad(Trunk);
 n = length(R);
 Taper = zeros(n+1,2);
@@ -231,6 +262,7 @@ end
 if inputs.disp == 2
     %% Generate units for displaying the treedata
     Units = zeros(n,3);
+    % 下列循环用来添加单位
     for i = 1:n
         if ~inputs.Tria && strcmp(Names{i},'CrownVolumeAlpha')
             m = i;
@@ -410,31 +442,45 @@ end % End of main function
 
 function treedata = dbh_cylinder(treedata,trunk,Trunk,cylinder,ind)
 
+% treedata树的基本信息
+% trunk每个圆柱体的起始点
+% Trunk为1则为主干否则为0
+
 % Dbh from the QSM
 i = 1;
+% 主干圆柱体的个数
 n = nnz(Trunk);
 T = ind(Trunk);
+% 长度和小于1.3m
 while i < n && sum(cylinder.length(T(1:i))) < 1.3
     i = i+1;
 end
+% 胸径为当前圆柱体的直径
 DBHqsm = 2*cylinder.radius(T(i));
 treedata.DBHqsm = DBHqsm;
 
 % Determine DBH from cylinder fitted particularly to the correct place
 % Select the trunk point set
+% 整理主干圆柱体起始点坐标
 A = mat_vec_subtraction(trunk,cylinder.start(1,:));
+% 0421几何性质存疑
 h = A*cylinder.axis(1,:)';
+% 寻找在1.1-1.5之间的圆柱体
 I = h < 1.5;
 J = h > 1.1;
 I = I&J;
 if nnz(I) > 100
     T = trunk(I,:);
     % Fit cylinder
+    % 选择cylinder中位于i位置的信息
     cyl0 = select_cylinders(cylinder,i);
+    % 最小二乘拟合（高斯牛顿法）
     cyl = least_squares_cylinder(T,cyl0);
+    % 如果拟合的直径比0.8倍的DBH大
     RadiusOK = 2*cyl.radius > 0.8*DBHqsm & 2*cyl.radius < 1.2*DBHqsm;
     
     if RadiusOK && abs(cylinder.axis(i,:)*cyl.axis') > 0.9 && cyl.conv && cyl.rel
+        % 修正QSM的DBH
         treedata.DBHcyl = 2*cyl.radius;
     else
         treedata.DBHcyl = DBHqsm;
@@ -449,20 +495,29 @@ end
 function [treedata,spreads] = crown_measures(treedata,cylinder,branch)
 
 %% Generate point clouds from the cylinder model
+% 每个圆柱方向向量
 Axe = cylinder.axis;
+% 每个圆柱长度
 Len = cylinder.length;
+% 每个圆柱的起始点
 Sta = cylinder.start;
+% 修正后每个圆柱的起始点
 Tip = Sta+[Len.*Axe(:,1) Len.*Axe(:,2) Len.*Axe(:,3)]; % tips of the cylinders
+% 圆柱的个数
 nc = length(Len);
 P = zeros(5*nc,3); % four mid points on the cylinder surface
 t = 0;
 for i = 1:nc
+    % V与Axe(i, :)垂直，W和V与Axe(i, :)垂直
     [U,V] = orthonormal_vectors(Axe(i,:));
     U = cylinder.radius(i)*U;
+    % 如果是主干
     if cylinder.branch(i) == 1
         % For stem cylinders generate more points
         for k = 1:4
+            % 每个圆柱分成4份
             M = Sta(i,:)+k*Len(i)/4*Axe(i,:);
+            % 旋转30度
             R = rotation_matrix(Axe(i,:),pi/12);
             for j = 1:12
                 if j > 1
@@ -489,8 +544,11 @@ P = double([P; Sta; Tip]);
 P = unique(P,'rows');
 
 %% Vertical profiles (layer diameters/spreads), mean:
+% 取最小值
 bot = min(P(:,3));
+% 取最大值
 top = max(P(:,3));
+% 高度
 Hei = top-bot;
 if Hei > 10
     m = 20;
@@ -725,7 +783,9 @@ DBHqsm = treedata.DBHqsm;
 % Determine the first major branch (over 10% of dbh or the maximum
 % diameter branch):
 b = 2;
+% 分支个数
 nb = size(branch.diameter,1);
+% 确定第一个主要分支，超过DBH的10%
 while b < nb && branch.diameter(b) < 0.1*DBHqsm
     b = b+1;
 end
@@ -736,10 +796,13 @@ end
 % Determine suitable cylinders up to the first major branch but keep the
 % stem diameter above one quarter (25%) of dbh:
 C = 1;
+% 圆柱个数
 nc = size(Sta,1);
+% 找到第一个主要分支，所对应的圆柱索引
 while C < nc && cylinder.branch(C) < b
     C = C+1;
 end
+% 主干的圆柱个数
 n = nnz(cylinder.branch == 1);
 i = 2;
 while i < n && Sta(i,3) < Sta(C,3) && Rad(i) > 0.125*DBHqsm
@@ -869,28 +932,42 @@ end
 
 
 function treedata = cylinder_distribution(treedata,Rad,Len,Axe,dist)
+
+% 圆柱体分布
+
 %% Wood part diameter, zenith and azimuth direction distributions
 % Volume, area and length of wood parts as functions of cylinder 
 % diameter, zenith, and azimuth
 if strcmp(dist,'Dia')
     Par = Rad;
+    % n个类别，计算最大的直径
     n = ceil(max(200*Rad));
+    % 半径0.005cm
     a = 0.005; % diameter in 1 cm classes
 elseif strcmp(dist,'Zen')
+    % z轴的反余弦
     Par = 180/pi*acos(Axe(:,3));
+    % 分成18个类
     n = 18;
+    % 每类的角度为10度
     a = 10; % zenith direction in 10 degree angle classes
 elseif strcmp(dist,'Azi')
+    % xoy平面的反正切，返回角度位于-180--+180
     Par = 180/pi*atan2(Axe(:,2),Axe(:,1))+180;
+    % 分成36类
     n = 36;
+    % 每类的角度为10度
     a = 10; % azimuth direction in 10 degree angle classes
 end
 
 CylDist = zeros(3,n);
 for i = 1:n
     K = Par >= (i-1)*a & Par < i*a;
+    % 体积
     CylDist(1,i) = 1000*pi*sum(Rad(K).^2.*Len(K)); % volumes in litres
+    % 表面积
     CylDist(2,i) = 2*pi*sum(Rad(K).*Len(K)); % areas in litres
+    % 长度
     CylDist(3,i) = sum(Len(K)); % lengths in meters
 end
 treedata.(['VolCyl',dist]) = CylDist(1,:);
@@ -904,10 +981,12 @@ function treedata = cylinder_height_distribution(treedata,Rad,Len,Sta,Axe,ind)
 %% Wood part height distributions
 % Volume, area and length of cylinders as a function of height 
 % (in 1 m height classes)
+% 树高（按照每类1米高）
 MaxHei= ceil(treedata.TreeHeight);
 treedata.VolCylHei = zeros(1,MaxHei);
 treedata.AreCylHei = zeros(1,MaxHei);
 treedata.LenCylHei = zeros(1,MaxHei);
+% 每个圆柱体的结束点
 End = Sta+[Len.*Axe(:,1) Len.*Axe(:,2) Len.*Axe(:,3)];
 bot = min(Sta(:,3));
 B = Sta(:,3)-bot;
@@ -919,30 +998,48 @@ for j = 1:MaxHei
     I2 = T >= (j-2) & T < (j-1); % top below this bin
     J2 = T >= (j-1) & T < j; % top in this bin
     K2 = T >= j & T < (j+1); % top above this bin
+    % (j-1, j)前一个圆柱之内
     C1 = ind(J1&J2); % base and top in this bin
+    % (j-1, j+1)两个圆柱之间
     C2 = ind(J1&K2); % base in this bin, top above
+    % 理论为空?
+    % 可能树在往下张长!
     C3 = ind(J1&I2); % base in this bin, top below
+    % (j-2, j)两个圆柱之间
     C4 = ind(I1&J2); % base in bin below, top in this
+    % (j-1, j+1)两个圆柱之间
     C5 = ind(K1&J2); % base in bin above, top in this
+    % 体积和
     v1 = 1000*pi*sum(Rad(C1).^2.*Len(C1));
+    % 表面积和
     a1 = 2*pi*sum(Rad(C1).*Len(C1));
+    % 长度和
     l1 = sum(Len(C1));
+    % 位于底部,占全部的比例
     r2 = (j-B(C2))./(T(C2)-B(C2)); % relative portion in this bin
+
     v2 = 1000*pi*sum(Rad(C2).^2.*Len(C2).*r2);
     a2 = 2*pi*sum(Rad(C2).*Len(C2).*r2);
     l2 = sum(Len(C2).*r2);
+    % 位于顶部,占全部的比例
     r3 = (B(C3)-j+1)./(B(C3)-T(C3)); % relative portion in this bin
+
     v3 = 1000*pi*sum(Rad(C3).^2.*Len(C3).*r3);
     a3 = 2*pi*sum(Rad(C3).*Len(C3).*r3);
     l3 = sum(Len(C3).*r3);
+    % 位于顶部,占全部的比例
     r4 = (T(C4)-j+1)./(T(C4)-B(C4)); % relative portion in this bin
+
     v4 = 1000*pi*sum(Rad(C4).^2.*Len(C4).*r4);
     a4 = 2*pi*sum(Rad(C4).*Len(C4).*r4);
     l4 = sum(Len(C4).*r4);
+    % 位于底部,占全部的比例
     r5 = (j-T(C5))./(B(C5)-T(C5)); % relative portion in this bin
+
     v5 = 1000*pi*sum(Rad(C5).^2.*Len(C5).*r5);
     a5 = 2*pi*sum(Rad(C5).*Len(C5).*r5);
     l5 = sum(Len(C5).*r5);
+
     treedata.VolCylHei(j) = v1+v2+v3+v4+v5;
     treedata.AreCylHei(j) = a1+a2+a3+a4+a5;
     treedata.LenCylHei(j) = l1+l2+l3+l4+l5;
@@ -959,22 +1056,30 @@ BVol = branch.volume(2:end);
 BAre = branch.area(2:end);
 BLen = branch.length(2:end);
 if strcmp(dist,'Dia')
+    % 直径
     Par = branch.diameter(2:end);
+    % 计算最大的直径
     n = ceil(max(100*Par));
+    % 直径按照1cm来区分
     a = 0.005; % diameter in 1 cm classes
 elseif strcmp(dist,'Hei')
+    % 高度
     Par = branch.height(2:end);
     n = ceil(treedata.TreeHeight);
+    % 高度按照1m来区分
     a = 1; % height in 1 m classes
 elseif strcmp(dist,'Ang')
+    % ？？
     Par = branch.angle(2:end);
     n = 18;
     a = 10; % angle in 10 degree classes
 elseif strcmp(dist,'Zen')
+    % xoy面的位置？？
     Par = branch.zenith(2:end);
     n = 18;
     a = 10; % zenith direction in 10 degree angle classes
 elseif strcmp(dist,'Azi')
+    % ？？
     Par = branch.azimuth(2:end)+180;
     n = 36;
     a = 10; % azimuth direction in 10 degree angle classes
@@ -1004,15 +1109,24 @@ end
 
 
 function treedata = branch_order_distribution(treedata,branch)
+
+% 按照分支order分布
+
 %% Branch order distributions
 % Volume, area, length and number of branches as a function of branch order
+% 最大的分支
 BO = max(branch.order);
 BranchOrdDist = zeros(BO,4);
 for i = 1:max(1,BO)
+    % 找到当前的分支
     I = branch.order == i;
+    % 分支体积和
     BranchOrdDist(i,1) = sum(branch.volume(I)); % volumes
+    % 分支表面积和
     BranchOrdDist(i,2) = sum(branch.area(I)); % areas
+    % 分支长度和
     BranchOrdDist(i,3) = sum(branch.length(I)); % lengths
+    % 分支的个数
     BranchOrdDist(i,4) = nnz(I); % number of ith-order branches
 end
 treedata.VolBranchOrd = BranchOrdDist(:,1)';

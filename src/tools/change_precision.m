@@ -1,5 +1,7 @@
 function v = change_precision(v)
 
+% 更改精度
+
 % Decrease the number of nonzero decimals in the vector v according to the
 % exponent of the number for displaying and writing.
 

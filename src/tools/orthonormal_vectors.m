@@ -3,6 +3,9 @@ function [V,W] = orthonormal_vectors(U)
 % Generate vectors V and W that are unit vectors orthogonal to themselves 
 % and to the input vector U
 
+% 向量V和U垂直
+% 向量w同时和V/U垂直
+
 V = rand(3,1);
 % 向量叉积
 V = cross_product(V,U);
