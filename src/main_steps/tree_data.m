@@ -313,13 +313,17 @@ if inputs.disp == 2
     disp('  -----')
 end
 
+% 开始plot
 if inputs.plot > 1
 %% Plot distributions
 figure(6)
 subplot(2,4,1)
+% 主干的高度
 plot(Taper(:,1),Taper(:,2),'-b')
 title('Stem taper')
+% x轴树高
 xlabel('Distance from base (m)')
+% y轴对应的直径
 ylabel('Diameter (m)')
 axis tight
 grid on

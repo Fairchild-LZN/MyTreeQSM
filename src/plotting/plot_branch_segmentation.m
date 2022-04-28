@@ -52,6 +52,7 @@ Bal = cover.ball;
 Segs = segment.segments;
 SChi = segment.ChildSegment;
 SPar = segment.ParentSegment;
+% 圆柱体个数
 ns = max(size(Segs));
 
 if iscell(Segs{1})
@@ -71,6 +72,7 @@ else
 end
 
 if strcmp(Color,'branch')
+    % 按照分支分类画图
     Color = 1;
     % Color the segments with unique colors
     col = rand(ns,3);
@@ -83,8 +85,10 @@ if strcmp(Color,'branch')
         col(i,:) = c;
     end
 elseif strcmp(Color,'order')
+    % 按照order分类画图
     Color = 0;
     % Color the cylinders in branches based on the branch order
+    % 红黄蓝占比？
     col = [
         0.00  0.00  1.00
         0.00  0.50  0.00

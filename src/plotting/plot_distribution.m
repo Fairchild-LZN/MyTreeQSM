@@ -1,5 +1,9 @@
 function plot_distribution(QSM,fig,rel,dis,dis2,dis3,dis4)
 
+% QSM输出结果
+% fig第几幅图片
+% rel=1 相对值 rel=0绝对值（类比相对误差和绝对误差）
+
 % ---------------------------------------------------------------------
 % PLOT_DISTRIBUTION     Plots the specified distribution(s) in the 
 %                           "treedata" field of the QSM structure array.
@@ -26,30 +30,40 @@ function plot_distribution(QSM,fig,rel,dis,dis2,dis3,dis4)
 % ---------------------------------------------------------------------
 
 % Generate strings for title, xlabel and ylabel:
+% y轴标记
 if strcmp(dis(1:3),'Vol')
+    % 体积
     str = 'volume';
     ylab = 'Volume (L)';
 elseif strcmp(dis(1:3),'Are')
+    % 表面积
     str = 'area';
     ylab = 'Area (m^2)';
 elseif strcmp(dis(1:3),'Len')
+    % 长度
     str = 'length';
     ylab = 'Length (m)';
 elseif strcmp(dis(1:3),'Num')
+    % 数量
     str = 'number';
     ylab = 'Number';  
 end
 
+% x轴标记
 if strcmp(dis(end-2:end),'Dia')
+    % 直径
     str2 = 'diameter';
     xlab = 'diameter (cm)';
 elseif strcmp(dis(end-2:end),'Hei')
+    % 高度
     str2 = 'height';
     xlab = 'height (m)';
 elseif strcmp(dis(end-2:end),'Ord')
+    % 第几阶分支
     str2 = 'order';
     xlab = 'order';
 elseif strcmp(dis(end-2:end),'Ang')
+    % 角度
     str2 = 'angle';
     xlab = 'angle (deg)';
 elseif strcmp(dis(end-2:end),'Azi')
@@ -99,6 +113,7 @@ else
 end
 
 if rel
+    % 采用相对值（占总体的百分比）
     % use relative value
     for i = 1:m
         D(i,:) = D(i,:)/sum(D(i,:))*100;
@@ -108,6 +123,7 @@ end
 
 % Generate the bar plot
 figure(fig)
+% 画图
 if strcmp(dis(end-3:end),'hAzi') || strcmp(dis(end-3:end),'1Azi') || strcmp(dis(end-2:end),'Azi') 
     bar(-170:10:180,D')
 elseif strcmp(dis(end-2:end),'Zen') || strcmp(dis(end-2:end),'Ang')
@@ -117,6 +133,7 @@ else
 end
 
 % Generate the title of the plot
+% 生成每个小表的表头
 if strcmp(dis(end-2:end),'Ord') && ~strcmp(dis(1:3),'Num')
     tit = ['Branch ',str,' per branching order'];
 elseif strcmp(dis(end-2:end),'Ord')
